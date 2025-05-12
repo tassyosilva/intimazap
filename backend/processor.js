@@ -6,12 +6,12 @@ const path = require('path');
 // Função para gerar a mensagem personalizada
 function gerarMensagem(nome, data, hora) {
     return `Olá, ${nome}!
-Você está recebendo uma intimação para comparecer à sede da Delegacia Especializada de Roubos e Furtos, localizada à Rua Américo Marques, 27 – Vila Sobrinho, no dia ${data}, às ${hora}h, munido(a) de documento de identificação e deste MANDADO DE INTIMAÇÃO, para prestar esclarecimento sobre fato em apuração.
+Você está recebendo uma intimação para comparecer à sede da Delegacia mais próxima de sua residência, até a data limite de ${data}, às ${hora}h, munido(a) de documento de identificação e deste MANDADO DE INTIMAÇÃO, para prestar esclarecimento sobre fato em apuração.
 ${nome}, ao se apresentar, você deverá procurar o Delegado de Polícia e apresentar este MANDADO DE INTIMAÇÃO.
 A ausência injustificada poderá caracterizar crime de desobediência, previsto no artigo 330 do Código Penal.
-Em caso de dúvidas entre em contato através do número (67)99986-0295
-A confirmação da titularidade desta conta de WhatsApp pela Polícia Civil do Estado do Mato Grosso do Sul pode ser conferida clicando no link abaixo: 
-https://www.pc.ms.gov.br/policia-civil-estabelece-normas-para-intimacao-por-meio-eletronico/`;
+Em caso de dúvidas entre em contato através do número (númerodapolicia)
+A confirmação da titularidade desta conta de WhatsApp pela Polícia Civil do Estado de Roraima pode ser conferida acessando o site da PCRR no link abaixo: 
+https://www.policiacivil.rr.gov.br/link/`;
 }
 
 // Função para processar o arquivo XLSX

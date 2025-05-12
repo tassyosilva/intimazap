@@ -203,7 +203,7 @@ const UploadForm = () => {
                             <Grid item xs={12} sm={6}>
                                 <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
                                     <DatePicker
-                                        label="Data da Intimação"
+                                        label="Data limite para comparecimento"
                                         value={dataIntimacao}
                                         onChange={(newValue) => setDataIntimacao(newValue)}
                                         slotProps={{
@@ -218,7 +218,7 @@ const UploadForm = () => {
 
                             <Grid item xs={12} sm={6}>
                                 <TextField
-                                    label="Hora da Intimação"
+                                    label="Horário Limite"
                                     fullWidth
                                     required
                                     value={horaIntimacao}

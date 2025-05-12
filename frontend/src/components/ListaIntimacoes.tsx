@@ -188,9 +188,9 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                                     <TableCell>Nº BO</TableCell>
                                     <TableCell>Nome</TableCell>
                                     <TableCell>Telefone</TableCell>
-                                    <TableCell>Data/Hora</TableCell>
+                                    <TableCell>Data limite para comparecimento</TableCell>
                                     <TableCell>Status</TableCell>
-                                    <TableCell>Data Envio</TableCell>
+                                    <TableCell>Data do Envio</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
