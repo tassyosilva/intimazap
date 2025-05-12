@@ -63,6 +63,49 @@ async function startBot() {
     return sock;
 }
 
+// Função para formatar corretamente o número de telefone
+function formatarNumeroTelefone(numeroOriginal) {
+    // Remover todos os caracteres não numéricos
+    let numero = numeroOriginal.replace(/\D/g, '');
+
+    // Se já começa com 55, verificar se precisa ajustar o formato
+    if (numero.startsWith('55')) {
+        // Verificar se tem o formato 55+DDD+9+número (13 dígitos)
+        if (numero.length === 13) {
+            // Remover o 9 após o DDD (assumindo que está na posição correta)
+            return numero.substring(0, 4) + numero.substring(5);
+        }
+        return numero; // Já está no formato correto ou outro formato
+    }
+
+    // Se começa com o DDD (formato "DDD+número")
+    if (numero.length >= 10) {
+        // Extrair os dois primeiros dígitos como DDD
+        const ddd = numero.substring(0, 2);
+        let restante = numero.substring(2);
+
+        // Se o primeiro dígito após o DDD for 9, removê-lo
+        if (restante.startsWith('9') && restante.length > 8) {
+            restante = restante.substring(1);
+        }
+
+        return `55${ddd}${restante}`;
+    }
+
+    // Número sem DDD, adicionar DDD padrão (95 para Roraima)
+    if (numero.length <= 9) {
+        // Se começa com 9 e tem 9 dígitos, remover o 9 inicial
+        if (numero.startsWith('9') && numero.length === 9) {
+            return `5595${numero.substring(1)}`;
+        }
+        return `5595${numero}`;
+    }
+
+    // Para outros casos, apenas adicionar 55 no início
+    console.log(`Formato de número não padrão: ${numero}. Adicionando 55 no início.`);
+    return `55${numero}`;
+}
+
 // Função para enviar uma mensagem
 async function enviarMensagem(telefone, mensagem) {
     if (!isConnected) {
@@ -75,13 +118,8 @@ async function enviarMensagem(telefone, mensagem) {
         if (telefone.includes('@s.whatsapp.net')) {
             destino = telefone;
         } else {
-            // Formatar o número no padrão WhatsApp (remover caracteres não numéricos)
-            let numeroFormatado = telefone.replace(/\D/g, '');
-
-            // Adicionar 55 no início se não começar com 55 (Brasil)
-            if (!numeroFormatado.startsWith('55')) {
-                numeroFormatado = '55' + numeroFormatado;
-            }
+            // Formatar o número no padrão WhatsApp
+            let numeroFormatado = formatarNumeroTelefone(telefone);
 
             // Garantir formato completo com @s.whatsapp.net
             destino = `${numeroFormatado}@s.whatsapp.net`;
@@ -131,16 +169,12 @@ async function processarFilaIntimacoes() {
         for (let i = 0; i < result.rows.length; i++) {
             const intimacao = result.rows[i];
             try {
-                // Formatar o número no padrão WhatsApp (remover caracteres não numéricos)
-                let numeroFormatado = intimacao.telefone.replace(/\D/g, '');
-
-                // Adicionar 55 no início se não começar com 55 (Brasil)
-                if (!numeroFormatado.startsWith('55')) {
-                    numeroFormatado = '55' + numeroFormatado;
-                }
+                // Formatar o número corretamente
+                let numeroFormatado = formatarNumeroTelefone(intimacao.telefone);
 
                 console.log(`\n[PROCESSANDO ${i + 1}/${result.rows.length}] Intimação #${intimacao.id} para ${intimacao.nome}`);
-                console.log(`Número: ${numeroFormatado}@s.whatsapp.net`);
+                console.log(`Número original: ${intimacao.telefone}`);
+                console.log(`Número formatado: ${numeroFormatado}@s.whatsapp.net`);
                 console.log(`ID da mensagem: ${intimacao.id}`);
 
                 // Pausa antes de enviar (para garantir sincronização)
