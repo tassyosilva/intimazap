@@ -9,7 +9,7 @@ import {
     Alert,
     Button
 } from '@mui/material';
-import { Refresh, Check, Error, Pending } from '@mui/icons-material';
+import { Refresh, Check, Error, Pending, MoreHoriz } from '@mui/icons-material';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/api';
@@ -54,13 +54,13 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'enviado':
-                return Check;
+                return <Check />;
             case 'erro':
-                return Error;
+                return <Error />;
             case 'pendente':
-                return Pending;
+                return <Pending />;
             default:
-                return undefined;
+                return <MoreHoriz />; // Ícone padrão em vez de null
         }
     };
 
@@ -88,6 +88,18 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
             default:
                 return status;
         }
+    };
+
+    const renderChipForStatus = (item: Estatistica) => {
+        return (
+            <Chip
+                icon={getStatusIcon(item.status)}
+                label={getStatusTranslation(item.status)}
+                color={getStatusColor(item.status) as any}
+                size="small"
+                sx={{ mb: 1 }}
+            />
+        );
     };
 
     return (
@@ -134,21 +146,15 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
                             <Box sx={{
                                 p: 2,
                                 border: `1px solid ${getStatusColor(item.status) === 'success' ? '#4caf50' :
-                                        getStatusColor(item.status) === 'error' ? '#f44336' :
-                                            getStatusColor(item.status) === 'warning' ? '#ff9800' : '#e0e0e0'
+                                    getStatusColor(item.status) === 'error' ? '#f44336' :
+                                        getStatusColor(item.status) === 'warning' ? '#ff9800' : '#e0e0e0'
                                     }`,
                                 borderRadius: 1,
                                 display: 'flex',
                                 flexDirection: 'column',
                                 alignItems: 'center'
                             }}>
-                                <Chip
-                                    icon={getStatusIcon(item.status)}
-                                    label={getStatusTranslation(item.status)}
-                                    color={getStatusColor(item.status) as any}
-                                    size="small"
-                                    sx={{ mb: 1 }}
-                                />
+                                {renderChipForStatus(item)}
                                 <Typography variant="h5">
                                     {item.quantidade}
                                 </Typography>

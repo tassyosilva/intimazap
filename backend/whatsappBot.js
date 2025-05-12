@@ -147,6 +147,9 @@ async function enviarMensagem(telefone, mensagem) {
 // Função para processar fila de intimações pendentes
 async function processarFilaIntimacoes() {
     try {
+        // Configurar timezone explicitamente para esta transação
+        await pool.query(`SET timezone = 'America/Boa_Vista'`);
+
         // Buscar intimações pendentes no banco de dados
         const result = await pool.query(
             'SELECT * FROM intimacoes WHERE status = $1 ORDER BY id LIMIT 50',
@@ -184,11 +187,35 @@ async function processarFilaIntimacoes() {
                 await enviarMensagem(numeroFormatado, intimacao.mensagem);
                 console.log(`Mensagem enviada com sucesso para ${intimacao.nome}`);
 
-                // Atualizar status para enviado
+                // Usar JavaScript para obter a hora local e formatá-la para salvar
+                const agora = new Date();
+                const horaLocal = agora.toLocaleString('pt-BR');
+                console.log(`Hora local obtida via JavaScript: ${horaLocal}`);
+
+                // Verificar hora atual no PostgreSQL antes do update
+                const verificaHora = await pool.query(`SELECT NOW() as agora, NOW() AT TIME ZONE 'America/Boa_Vista' as hora_boa_vista`);
+                console.log(`Hora PostgreSQL antes do update: ${verificaHora.rows[0].agora}`);
+                console.log(`Hora Boa Vista antes do update: ${verificaHora.rows[0].hora_boa_vista}`);
+
+                // Atualizar status para enviado com timestamp explícito
                 await pool.query(
-                    'UPDATE intimacoes SET status = $1, data_envio = NOW() WHERE id = $2',
+                    `UPDATE intimacoes SET status = $1, data_envio = CURRENT_TIMESTAMP WHERE id = $2`,
                     ['enviado', intimacao.id]
                 );
+
+                // Verificar qual timestamp foi realmente salvo
+                const horaRegistrada = await pool.query(
+                    `SELECT data_envio, 
+                      data_envio AT TIME ZONE 'UTC' as utc_time,
+                      data_envio AT TIME ZONE 'America/Boa_Vista' as local_time
+                     FROM intimacoes WHERE id = $1`,
+                    [intimacao.id]
+                );
+
+                console.log(`Timestamp salvo: ${horaRegistrada.rows[0].data_envio}`);
+                console.log(`Timestamp em UTC: ${horaRegistrada.rows[0].utc_time}`);
+                console.log(`Timestamp em Boa Vista: ${horaRegistrada.rows[0].local_time}`);
+
                 console.log(`Status atualizado para 'enviado' para intimação #${intimacao.id}`);
 
                 // Registrar log de sucesso
