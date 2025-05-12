@@ -28,6 +28,11 @@ async function processarPlanilha(filePath, dataIntimacao, horaIntimacao) {
 
         console.log(`Encontrados ${data.length} registros na planilha`);
 
+        // Debug: imprimir os dados de cada linha
+        data.forEach((row, index) => {
+            console.log(`DEBUG Planilha [${index}]: BO=${row['V_Nr Registro BO']}, Telefone=${row['R_Número A']}, Nome=${row['Nome do Receptador']}`);
+        });
+
         const resultados = {
             total: data.length,
             processados: 0,
@@ -42,8 +47,11 @@ async function processarPlanilha(filePath, dataIntimacao, horaIntimacao) {
                 const telefone = row['R_Número A'] || '';
                 const nome = row['Nome do Receptador'] || '';
 
+                console.log(`Processando registro: Nome=${nome}, Telefone=${telefone}`);
+
                 // Pular registros sem telefone
                 if (!telefone || telefone === 'Sem Informação') {
+                    console.log(`Pulando registro sem telefone: ${boRegistro}`);
                     resultados.detalhes.push({
                         registro: boRegistro,
                         status: 'pulado',
@@ -54,15 +62,18 @@ async function processarPlanilha(filePath, dataIntimacao, horaIntimacao) {
 
                 // Gerar mensagem personalizada
                 const mensagem = gerarMensagem(nome, dataIntimacao, horaIntimacao);
+                console.log(`Mensagem gerada para ${nome}, primeiros 50 caracteres: ${mensagem.substring(0, 50)}...`);
 
                 // Inserir no banco de dados
                 const result = await pool.query(
                     `INSERT INTO intimacoes 
-          (bo_registro, nome, telefone, data_intimacao, hora_intimacao, mensagem, status) 
-          VALUES ($1, $2, $3, $4, $5, $6, $7) 
-          RETURNING id`,
+                    (bo_registro, nome, telefone, data_intimacao, hora_intimacao, mensagem, status) 
+                    VALUES ($1, $2, $3, $4, $5, $6, $7) 
+                    RETURNING id`,
                     [boRegistro, nome, telefone, dataIntimacao, horaIntimacao, mensagem, 'pendente']
                 );
+
+                console.log(`Registro inserido no banco de dados com ID=${result.rows[0].id}`);
 
                 resultados.processados++;
                 resultados.detalhes.push({

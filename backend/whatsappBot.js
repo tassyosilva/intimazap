@@ -88,7 +88,16 @@ async function enviarMensagem(telefone, mensagem) {
         }
 
         console.log(`Enviando mensagem para: ${destino}`);
-        await sock.sendMessage(destino, { text: mensagem });
+        console.log(`Conteúdo da mensagem (primeiros 100 caracteres): ${mensagem.substring(0, 100)}...`);
+
+        // Criar um objeto de mensagem específico
+        const mensagemObj = {
+            text: mensagem
+        };
+
+        // Enviar a mensagem uma única vez para o destinatário específico
+        const result = await sock.sendMessage(destino, mensagemObj);
+        console.log(`Mensagem enviada com ID: ${result?.key?.id || 'desconhecido'}`);
 
         return true;
     } catch (error) {
@@ -108,38 +117,45 @@ async function processarFilaIntimacoes() {
 
         console.log(`Processando ${result.rows.length} intimações pendentes`);
 
-        // Agrupar intimações por telefone para garantir que cada número receba apenas sua intimação
-        const intimacoesPorTelefone = {};
-
-        // Organizar intimações por número de telefone
-        for (const intimacao of result.rows) {
-            // Formatar o número no padrão WhatsApp (remover caracteres não numéricos)
-            let numeroFormatado = intimacao.telefone.replace(/\D/g, '');
-
-            // Adicionar 55 no início se não começar com 55 (Brasil)
-            if (!numeroFormatado.startsWith('55')) {
-                numeroFormatado = '55' + numeroFormatado;
-            }
-
-            // Usar o número formatado como chave para o agrupamento
-            intimacoesPorTelefone[numeroFormatado] = intimacao;
+        // Debug: listar todas as intimações com detalhes específicos
+        for (let i = 0; i < result.rows.length; i++) {
+            const item = result.rows[i];
+            console.log(`DEBUG [${i}] ID: ${item.id}, Nome: ${item.nome}, Telefone: ${item.telefone}`);
+            console.log(`DEBUG [${i}] Mensagem (primeiros 50 caracteres): ${item.mensagem.substring(0, 50)}...`);
         }
 
-        // Processar cada intimação para seu número específico
-        for (const numeroTelefone in intimacoesPorTelefone) {
-            const intimacao = intimacoesPorTelefone[numeroTelefone];
+        // Contador de processados
+        let processados = 0;
 
+        // Processar cada intimação individualmente, com pausa entre elas
+        for (let i = 0; i < result.rows.length; i++) {
+            const intimacao = result.rows[i];
             try {
-                console.log(`Enviando mensagem para: ${numeroTelefone}@s.whatsapp.net`);
+                // Formatar o número no padrão WhatsApp (remover caracteres não numéricos)
+                let numeroFormatado = intimacao.telefone.replace(/\D/g, '');
+
+                // Adicionar 55 no início se não começar com 55 (Brasil)
+                if (!numeroFormatado.startsWith('55')) {
+                    numeroFormatado = '55' + numeroFormatado;
+                }
+
+                console.log(`\n[PROCESSANDO ${i + 1}/${result.rows.length}] Intimação #${intimacao.id} para ${intimacao.nome}`);
+                console.log(`Número: ${numeroFormatado}@s.whatsapp.net`);
+                console.log(`ID da mensagem: ${intimacao.id}`);
+
+                // Pausa antes de enviar (para garantir sincronização)
+                await new Promise(resolve => setTimeout(resolve, 1000));
 
                 // Enviar a mensagem específica para este número
-                await enviarMensagem(numeroTelefone, intimacao.mensagem);
+                await enviarMensagem(numeroFormatado, intimacao.mensagem);
+                console.log(`Mensagem enviada com sucesso para ${intimacao.nome}`);
 
                 // Atualizar status para enviado
                 await pool.query(
                     'UPDATE intimacoes SET status = $1, data_envio = NOW() WHERE id = $2',
                     ['enviado', intimacao.id]
                 );
+                console.log(`Status atualizado para 'enviado' para intimação #${intimacao.id}`);
 
                 // Registrar log de sucesso
                 await pool.query(
@@ -147,8 +163,11 @@ async function processarFilaIntimacoes() {
                     [intimacao.id, 'enviado']
                 );
 
-                // Pequena pausa para evitar bloqueio por spam
-                await new Promise(resolve => setTimeout(resolve, 3000));
+                processados++;
+
+                // Pausa maior entre envios para evitar problemas de sincronização e limite de taxa
+                console.log(`Aguardando 5 segundos antes do próximo envio...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
 
             } catch (error) {
                 console.error(`Erro ao enviar intimação #${intimacao.id}:`, error);
@@ -164,10 +183,13 @@ async function processarFilaIntimacoes() {
                     'INSERT INTO logs_envio (intimacao_id, status, erro) VALUES ($1, $2, $3)',
                     [intimacao.id, 'erro', error.message || 'Erro desconhecido']
                 );
+
+                // Pausa após erro
+                await new Promise(resolve => setTimeout(resolve, 3000));
             }
         }
 
-        return { processados: Object.keys(intimacoesPorTelefone).length };
+        return { processados };
     } catch (error) {
         console.error('Erro ao processar fila de intimações:', error);
         throw error;
