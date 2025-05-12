@@ -1,0 +1,10 @@
+# Ignora arquivos de autenticação do Baileys
+auth_info_baileys/
+
+# Ignora dependências do Node.js
+node_modules/
+
+# Ignora variáveis de ambiente
+.env
+
+node_modules\n.env\ndist\nbuild\nauth_info_baileys
