@@ -11,7 +11,7 @@ ${nome}, ao se apresentar, o(a) Senhor(a) deverá procurar o Delegado de Políci
 Em caso de ausência, favor justificar junto ao cartório da Delegacia mais próxima, pois a ausência injustificada poderá caracterizar crime de desobediência, previsto no artigo 330 do Código Penal.
 Em caso de dúvidas, entre em contato através do número (95)99168-7209
 A confirmação da titularidade desta conta de WhatsApp pela Polícia Civil do Estado de Roraima pode ser conferida acessando o site da PCRR no link abaixo: 
-https://www.policiacivil.rr.gov.br/link/`;
+https://policiacivil.rr.gov.br/intimacao-eletronica-pcrr/`;
 }
 
 // Função para processar o arquivo XLSX
