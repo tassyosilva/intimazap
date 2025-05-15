@@ -6,7 +6,7 @@ const path = require('path');
 // Função para gerar a mensagem personalizada
 function gerarMensagem(nome, data, hora) {
     return `Olá, ${nome}!
-O(A) Senhor(a) está recebendo uma intimação para comparecer à sede da Delegacia mais próxima de sua residência, até a data de ${data}, às ${hora}h, munido(a) de documento de identificação e deste MANDADO DE INTIMAÇÃO, para prestar esclarecimento sobre fato em apuração.
+O(A) Senhor(a) está recebendo uma intimação para comparecer à sede da Delegacia mais próxima de sua residência, até a data de ${data}, às ${hora}h, munido(a) de documento de identificação e deste MANDADO DE INTIMAÇÃO juntamente do aparelho celular em que foi recebida a presente mensagem, para prestar esclarecimento sobre fato em apuração.
 ${nome}, ao se apresentar, o(a) Senhor(a) deverá procurar o Delegado de Polícia e apresentar este MANDADO DE INTIMAÇÃO.
 Em caso de ausência, favor justificar junto ao cartório da Delegacia mais próxima, pois a ausência injustificada poderá caracterizar crime de desobediência, previsto no artigo 330 do Código Penal.
 Em caso de dúvidas, entre em contato através do número (95)99168-7209
