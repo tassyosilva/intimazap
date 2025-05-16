@@ -59,6 +59,32 @@ async function initDatabase() {
       )
     `);
 
+    // Tabela de usuários
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        senha VARCHAR(255) NOT NULL,
+        tipo VARCHAR(50) NOT NULL DEFAULT 'padrao',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Verificar se existe pelo menos um usuário admin
+    const adminResult = await pool.query(`
+      SELECT COUNT(*) FROM usuarios WHERE tipo = 'admin'
+    `);
+
+    if (parseInt(adminResult.rows[0].count) === 0) {
+      // Criar usuário admin padrão (senha: admin)
+      await pool.query(`
+        INSERT INTO usuarios (nome, email, senha, tipo) 
+        VALUES ('Administrador', 'admin', 'admin', 'admin')
+      `);
+      console.log('Usuário admin padrão criado');
+    }
+
     console.log('Banco de dados inicializado com sucesso');
   } catch (error) {
     console.error('Erro ao inicializar banco de dados:', error);
