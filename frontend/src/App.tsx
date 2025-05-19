@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { ExitToApp, AccountCircle } from '@mui/icons-material';
 import axios from 'axios';
+import logo from './assets/logo.png'; // Importação do logo
 
 // Componentes
 import Login from './components/Login';
@@ -137,9 +138,13 @@ function App() {
       {/* AppBar */}
       <StyledAppBar position="fixed">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            IntimaZap
-          </Typography>
+          {/* Logo e Título */}
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <img src={logo} alt="IntimaZap Logo" style={{ height: '36px', marginRight: '10px' }} />
+            <Typography variant="h6" component="div">
+              IntimaZap
+            </Typography>
+          </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>

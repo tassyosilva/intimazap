@@ -8,8 +8,8 @@ import {
     Alert,
     CircularProgress
 } from '@mui/material';
-import { Lock } from '@mui/icons-material';
 import axios from 'axios';
+import logo from '../assets/logo.png'; // Importando o logo
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -82,7 +82,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         mb: 3
                     }}
                 >
-                    <Lock color="primary" sx={{ fontSize: 50, mb: 2 }} />
+                    {/* Logo da aplicação */}
+                    <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+                        <img src={logo} alt="IntimaZap Logo" style={{ height: '80px' }} />
+                    </Box>
+
                     <Typography variant="h5" component="h1" gutterBottom>
                         IntimaZap - Login
                     </Typography>

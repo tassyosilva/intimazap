@@ -37,7 +37,7 @@ const drawerWidth = 240;
 // Drawer estilizado
 const StyledDrawer = styled(Drawer)(({ theme }) => ({
     '& .MuiDrawer-paper': {
-        backgroundColor: theme.palette.primary.main,
+        backgroundColor: theme.palette.primary.main, // Isso usará a cor preta definida como primary.main
         color: '#fff',
         width: drawerWidth,
         boxSizing: 'border-box',

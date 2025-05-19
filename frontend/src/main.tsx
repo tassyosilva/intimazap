@@ -14,10 +14,14 @@ if (token) {
   axios.defaults.headers.common['Authorization'] = token;
 }
 
+// Tema modificado com cores pretas ao invés de azul
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
+      main: '#212121', // Cor preta para a barra superior e menu lateral
+      light: '#484848',
+      dark: '#000000',
+      contrastText: '#fff'
     },
     secondary: {
       main: '#dc004e',
