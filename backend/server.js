@@ -7,7 +7,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
 const { initDatabase, pool } = require('./db');
-const { startBot, processarFilaIntimacoes, getConnectionStatus } = require('./whatsappBot');
+const { startBot, processarFilaIntimacoes, getConnectionStatus, disconnectBot } = require('./whatsappBot');
 const { processarPlanilha, obterEstatisticas, listarIntimacoes } = require('./processor');
 
 require('dotenv').config();
@@ -190,10 +190,20 @@ app.post('/api/upload', autenticarUsuario, upload.single('file'), async (req, re
     }
 });
 
-// Rota para obter status da conexão WhatsApp (protegida)
+// Rotas para gerenciar conexão WhatsApp (protegidas)
 app.get('/api/status', autenticarUsuario, (req, res) => {
     const status = getConnectionStatus();
     res.json(status);
+});
+
+app.post('/api/disconnect', autenticarUsuario, verificarAdmin, async (req, res) => {
+    try {
+        const resultado = await disconnectBot();
+        res.json(resultado);
+    } catch (error) {
+        console.error('Erro ao desconectar WhatsApp:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Rota para processar a fila de intimações pendentes (protegida)

@@ -20,6 +20,7 @@ import MenuLateral from './components/MenuLateral';
 import Dashboard from './components/Dashboard';
 import UploadForm from './components/UploadForm';
 import GerenciarUsuarios from './components/GerenciarUsuarios';
+import WhatsAppConfig from './components/WhatsAppConfig';
 
 // AppBar estilizado
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
@@ -87,8 +88,31 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
+  // Verificar permissão para acessar certas páginas
+  const checkAccess = (page: string) => {
+    const adminPages = ['usuarios', 'whatsapp_config'];
+    if (adminPages.includes(page) && usuario?.tipo !== 'admin') {
+      return false;
+    }
+    return true;
+  };
+
   // Renderizar o conteúdo principal baseado na página atual
   const renderContent = () => {
+    // Verificar acesso
+    if (!checkAccess(currentPage)) {
+      return (
+        <Box py={4} textAlign="center">
+          <Typography variant="h5" color="error" gutterBottom>
+            Acesso Negado
+          </Typography>
+          <Typography variant="body1">
+            Você não tem permissão para acessar esta página.
+          </Typography>
+        </Box>
+      );
+    }
+
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard refreshTrigger={refreshTrigger} />;
@@ -96,6 +120,8 @@ function App() {
         return <UploadForm />;
       case 'usuarios':
         return <GerenciarUsuarios />;
+      case 'whatsapp_config':
+        return <WhatsAppConfig />;
       default:
         return <Dashboard refreshTrigger={refreshTrigger} />;
     }

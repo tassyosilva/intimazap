@@ -266,9 +266,47 @@ function getConnectionStatus() {
     };
 }
 
+// Função para desconectar o bot
+async function disconnectBot() {
+    try {
+        if (!sock) {
+            throw new Error('Bot não está inicializado');
+        }
+
+        console.log('Iniciando desconexão do WhatsApp...');
+
+        // Verificar se há uma sessão ativa
+        if (isConnected) {
+            // Limpar diretório de autenticação para forçar nova autenticação
+            await fs.remove('./auth_info_baileys');
+            await fs.ensureDir('./auth_info_baileys');
+
+            // Atualizar estado
+            isConnected = false;
+            connectionStatus = 'desconectado';
+            qrString = null;
+
+            console.log('Sessão WhatsApp encerrada. Reiniciando conexão para gerar novo QR code...');
+
+            // Reiniciar o bot após um breve atraso
+            setTimeout(() => {
+                startBot();
+            }, 1000);
+
+            return { success: true, message: 'WhatsApp desconectado com sucesso' };
+        } else {
+            return { success: false, message: 'WhatsApp já está desconectado' };
+        }
+    } catch (error) {
+        console.error('Erro ao desconectar WhatsApp:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     startBot,
     enviarMensagem,
     processarFilaIntimacoes,
-    getConnectionStatus
+    getConnectionStatus,
+    disconnectBot
 };

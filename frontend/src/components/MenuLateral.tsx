@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
     Drawer,
     List,
@@ -11,12 +12,17 @@ import {
     Typography,
     useTheme,
     alpha,
-    styled
+    styled,
+    Collapse
 } from '@mui/material';
 import {
     Dashboard,
     PeopleAlt,
-    Send
+    Send,
+    Settings,
+    ExpandLess,
+    ExpandMore,
+    WhatsApp
 } from '@mui/icons-material';
 
 interface MenuLateralProps {
@@ -67,22 +73,118 @@ const StyledListItemButton = styled(ListItemButton)(({ theme }) => ({
     }
 }));
 
+// Estilização para submenu
+const SubMenuItem = styled(ListItemButton)(({ theme }) => ({
+    paddingLeft: theme.spacing(4),
+    margin: '2px 8px 2px 16px',
+    borderRadius: '8px',
+    transition: 'all 0.2s ease',
+    '&:hover': {
+        backgroundColor: alpha(theme.palette.common.white, 0.1),
+    },
+    '&.Mui-selected': {
+        backgroundColor: alpha(theme.palette.common.white, 0.15),
+        '&:hover': {
+            backgroundColor: alpha(theme.palette.common.white, 0.2),
+        },
+    }
+}));
+
 const MenuLateral: React.FC<MenuLateralProps> = ({
     onPageChange,
     currentPage,
     usuario
 }) => {
     const theme = useTheme();
+    const [configOpen, setConfigOpen] = useState(
+        currentPage === 'whatsapp_config' || currentPage === 'usuarios'
+    );
 
     const menuItems = [
         { text: 'Dashboard', icon: <Dashboard />, page: 'dashboard' },
         { text: 'Enviar Intimações', icon: <Send />, page: 'enviar' }
     ];
 
-    // Adicionar opção de usuários apenas para administradores
-    if (usuario.tipo === 'admin') {
-        menuItems.push({ text: 'Gerenciar Usuários', icon: <PeopleAlt />, page: 'usuarios' });
-    }
+    // Renderiza o menu de configurações apenas para administradores
+    const renderConfigMenu = () => {
+        if (usuario.tipo !== 'admin') return null;
+
+        return (
+            <>
+                <ListItem disablePadding>
+                    <StyledListItemButton onClick={() => setConfigOpen(!configOpen)}>
+                        <ListItemIcon
+                            sx={{
+                                minWidth: '40px',
+                                color: (currentPage === 'whatsapp_config' || currentPage === 'usuarios')
+                                    ? '#fff'
+                                    : alpha('#fff', 0.8)
+                            }}
+                        >
+                            <Settings />
+                        </ListItemIcon>
+                        <ListItemText
+                            primary="Configurações"
+                            primaryTypographyProps={{
+                                fontWeight: (currentPage === 'whatsapp_config' || currentPage === 'usuarios')
+                                    ? 'bold'
+                                    : 'normal',
+                            }}
+                        />
+                        {configOpen ? <ExpandLess /> : <ExpandMore />}
+                    </StyledListItemButton>
+                </ListItem>
+
+                <Collapse in={configOpen} timeout="auto" unmountOnExit>
+                    <List component="div" disablePadding>
+                        <ListItem disablePadding>
+                            <SubMenuItem
+                                selected={currentPage === 'whatsapp_config'}
+                                onClick={() => onPageChange('whatsapp_config')}
+                            >
+                                <ListItemIcon
+                                    sx={{
+                                        minWidth: '40px',
+                                        color: currentPage === 'whatsapp_config' ? '#fff' : alpha('#fff', 0.8)
+                                    }}
+                                >
+                                    <WhatsApp />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary="Conexão WhatsApp"
+                                    primaryTypographyProps={{
+                                        fontWeight: currentPage === 'whatsapp_config' ? 'bold' : 'normal',
+                                    }}
+                                />
+                            </SubMenuItem>
+                        </ListItem>
+
+                        <ListItem disablePadding>
+                            <SubMenuItem
+                                selected={currentPage === 'usuarios'}
+                                onClick={() => onPageChange('usuarios')}
+                            >
+                                <ListItemIcon
+                                    sx={{
+                                        minWidth: '40px',
+                                        color: currentPage === 'usuarios' ? '#fff' : alpha('#fff', 0.8)
+                                    }}
+                                >
+                                    <PeopleAlt />
+                                </ListItemIcon>
+                                <ListItemText
+                                    primary="Gerenciar Usuários"
+                                    primaryTypographyProps={{
+                                        fontWeight: currentPage === 'usuarios' ? 'bold' : 'normal',
+                                    }}
+                                />
+                            </SubMenuItem>
+                        </ListItem>
+                    </List>
+                </Collapse>
+            </>
+        );
+    };
 
     return (
         <StyledDrawer
@@ -136,6 +238,8 @@ const MenuLateral: React.FC<MenuLateralProps> = ({
                             </StyledListItemButton>
                         </ListItem>
                     ))}
+
+                    {renderConfigMenu()}
                 </List>
             </Box>
 
