@@ -22,7 +22,8 @@ import {
     Settings,
     ExpandLess,
     ExpandMore,
-    WhatsApp
+    WhatsApp,
+    Edit
 } from '@mui/icons-material';
 
 interface MenuLateralProps {
@@ -102,7 +103,8 @@ const MenuLateral: React.FC<MenuLateralProps> = ({
 
     const menuItems = [
         { text: 'Dashboard', icon: <Dashboard />, page: 'dashboard' },
-        { text: 'Enviar Intimações', icon: <Send />, page: 'enviar' }
+        { text: 'Enviar Intimações', icon: <Send />, page: 'enviar' },
+        { text: 'Editar Mensagem', icon: <Edit />, page: 'template' }
     ];
 
     // Renderiza o menu de configurações apenas para administradores

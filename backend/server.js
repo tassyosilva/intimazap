@@ -255,6 +255,89 @@ app.get('/api/intimacoes', autenticarUsuario, async (req, res) => {
     }
 });
 
+// Rota para obter o template de mensagem
+app.get('/api/template-mensagem', autenticarUsuario, async (req, res) => {
+    try {
+        // Verificar se já existe um template no banco
+        const result = await pool.query('SELECT * FROM config_sistema WHERE chave = $1', ['template_mensagem']);
+
+        if (result.rows.length > 0) {
+            res.json({ template: result.rows[0].valor });
+        } else {
+            // Retornar o template padrão do processor.js
+            const templatePadrao = `Olá, {nome}!
+O(A) Senhor(a) está recebendo uma intimação para comparecer à sede da Delegacia mais próxima de sua residência, até a data de {data}, às {hora}h, munido(a) de documento de identificação e deste MANDADO DE INTIMAÇÃO juntamente do aparelho celular em que foi recebida a presente mensagem, para prestar esclarecimento sobre fato em apuração.
+{nome}, ao se apresentar, o(a) Senhor(a) deverá procurar o Delegado de Polícia e apresentar este MANDADO DE INTIMAÇÃO.
+Em caso de ausência, favor justificar junto ao cartório da Delegacia mais próxima, pois a ausência injustificada poderá caracterizar crime de desobediência, previsto no artigo 330 do Código Penal.
+Em caso de dúvidas, entre em contato através do número (95)99168-7209
+A confirmação da titularidade desta conta de WhatsApp pela Polícia Civil do Estado de Roraima pode ser conferida acessando o site da PCRR no link abaixo: 
+https://policiacivil.rr.gov.br/intimacao-eletronica-pcrr/`;
+
+            // Inserir o template padrão no banco - COM TRATAMENTO DE ERRO DE DUPLICIDADE
+            try {
+                await pool.query(
+                    'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2) ON CONFLICT (chave) DO UPDATE SET valor = $2',
+                    ['template_mensagem', templatePadrao]
+                );
+            } catch (insertError) {
+                console.error('Erro ao inserir template padrão, tentando método alternativo:', insertError);
+
+                // Se a versão do PostgreSQL não suportar ON CONFLICT, tente outro método
+                const checkIfExists = await pool.query('SELECT COUNT(*) FROM config_sistema WHERE chave = $1', ['template_mensagem']);
+                if (parseInt(checkIfExists.rows[0].count) === 0) {
+                    await pool.query(
+                        'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2)',
+                        ['template_mensagem', templatePadrao]
+                    );
+                } else {
+                    await pool.query(
+                        'UPDATE config_sistema SET valor = $1 WHERE chave = $2',
+                        [templatePadrao, 'template_mensagem']
+                    );
+                }
+            }
+
+            res.json({ template: templatePadrao });
+        }
+    } catch (error) {
+        console.error('Erro ao obter template de mensagem:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para atualizar o template de mensagem
+app.post('/api/template-mensagem', autenticarUsuario, async (req, res) => {
+    try {
+        const { template } = req.body;
+
+        if (!template) {
+            return res.status(400).json({ error: 'Template de mensagem é obrigatório' });
+        }
+
+        // Verificar se já existe um template no banco
+        const result = await pool.query('SELECT * FROM config_sistema WHERE chave = $1', ['template_mensagem']);
+
+        if (result.rows.length > 0) {
+            // Atualizar o template existente
+            await pool.query(
+                'UPDATE config_sistema SET valor = $1 WHERE chave = $2',
+                [template, 'template_mensagem']
+            );
+        } else {
+            // Inserir o novo template
+            await pool.query(
+                'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2)',
+                ['template_mensagem', template]
+            );
+        }
+
+        res.json({ success: true, message: 'Template atualizado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar template de mensagem:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Iniciar o servidor
 app.listen(PORT, async () => {
     console.log(`Servidor rodando na porta ${PORT}`);

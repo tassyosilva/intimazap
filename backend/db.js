@@ -71,6 +71,17 @@ async function initDatabase() {
       )
     `);
 
+    // Tabela de configurações do sistema
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS config_sistema (
+        id SERIAL PRIMARY KEY,
+        chave VARCHAR(255) UNIQUE NOT NULL,
+        valor TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Verificar se existe pelo menos um usuário admin
     const adminResult = await pool.query(`
       SELECT COUNT(*) FROM usuarios WHERE tipo = 'admin'

@@ -4,14 +4,34 @@ const fs = require('fs-extra');
 const path = require('path');
 
 // Função para gerar a mensagem personalizada
-function gerarMensagem(nome, data, hora) {
-    return `Olá, ${nome}!
-O(A) Senhor(a) está recebendo uma intimação para comparecer à sede da Delegacia mais próxima de sua residência, até a data de ${data}, às ${hora}h, munido(a) de documento de identificação e deste MANDADO DE INTIMAÇÃO juntamente do aparelho celular em que foi recebida a presente mensagem, para prestar esclarecimento sobre fato em apuração.
-${nome}, ao se apresentar, o(a) Senhor(a) deverá procurar o Delegado de Polícia e apresentar este MANDADO DE INTIMAÇÃO.
+async function gerarMensagem(nome, data, hora) {
+    try {
+        // Buscar o template de mensagem no banco de dados
+        const result = await pool.query('SELECT valor FROM config_sistema WHERE chave = $1', ['template_mensagem']);
+
+        let template;
+        if (result.rows.length > 0) {
+            template = result.rows[0].valor;
+        } else {
+            // Template padrão caso não exista no banco
+            template = `Olá, {nome}!
+O(A) Senhor(a) está recebendo uma intimação para comparecer à sede da Delegacia mais próxima de sua residência, até a data de {data}, às {hora}h, munido(a) de documento de identificação e deste MANDADO DE INTIMAÇÃO juntamente do aparelho celular em que foi recebida a presente mensagem, para prestar esclarecimento sobre fato em apuração.
+{nome}, ao se apresentar, o(a) Senhor(a) deverá procurar o Delegado de Polícia e apresentar este MANDADO DE INTIMAÇÃO.
 Em caso de ausência, favor justificar junto ao cartório da Delegacia mais próxima, pois a ausência injustificada poderá caracterizar crime de desobediência, previsto no artigo 330 do Código Penal.
 Em caso de dúvidas, entre em contato através do número (95)99168-7209
 A confirmação da titularidade desta conta de WhatsApp pela Polícia Civil do Estado de Roraima pode ser conferida acessando o site da PCRR no link abaixo: 
 https://policiacivil.rr.gov.br/intimacao-eletronica-pcrr/`;
+        }
+
+        // Substituir as variáveis no template
+        return template
+            .replace(/{nome}/g, nome)
+            .replace(/{data}/g, data)
+            .replace(/{hora}/g, hora);
+    } catch (error) {
+        console.error('Erro ao gerar mensagem:', error);
+        throw error;
+    }
 }
 
 // Função para processar o arquivo XLSX
@@ -61,7 +81,7 @@ async function processarPlanilha(filePath, dataIntimacao, horaIntimacao) {
                 }
 
                 // Gerar mensagem personalizada
-                const mensagem = gerarMensagem(nome, dataIntimacao, horaIntimacao);
+                const mensagem = await gerarMensagem(nome, dataIntimacao, horaIntimacao);
                 console.log(`Mensagem gerada para ${nome}, primeiros 50 caracteres: ${mensagem.substring(0, 50)}...`);
 
                 // Inserir no banco de dados

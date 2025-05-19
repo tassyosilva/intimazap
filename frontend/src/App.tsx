@@ -21,6 +21,7 @@ import Dashboard from './components/Dashboard';
 import UploadForm from './components/UploadForm';
 import GerenciarUsuarios from './components/GerenciarUsuarios';
 import WhatsAppConfig from './components/WhatsAppConfig';
+import TemplateEditor from './components/TemplateEditor';
 
 // AppBar estilizado
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
@@ -118,6 +119,8 @@ function App() {
         return <Dashboard refreshTrigger={refreshTrigger} />;
       case 'enviar':
         return <UploadForm />;
+      case 'template':
+        return <TemplateEditor />;
       case 'usuarios':
         return <GerenciarUsuarios />;
       case 'whatsapp_config':

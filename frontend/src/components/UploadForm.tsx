@@ -10,8 +10,16 @@ import {
     CircularProgress,
     Grid,
     InputLabel,
-    Divider} from '@mui/material';
-import { Upload, Send } from '@mui/icons-material';
+    Divider,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Chip
+} from '@mui/material';
+import { Upload, Send, CheckCircle, Error } from '@mui/icons-material';
 import axios from 'axios';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -21,13 +29,24 @@ import { format } from 'date-fns';
 
 const API_URL = 'http://localhost:3000/api';
 
+interface ResultadoDetalhado {
+    id: number;
+    nome: string;
+    telefone: string;
+    status: string;
+    mensagem: string;
+    hora: string;
+}
+
 const UploadForm = () => {
     const [file, setFile] = useState<File | null>(null);
     const [dataIntimacao, setDataIntimacao] = useState<Date | null>(null);
     const [horaIntimacao, setHoraIntimacao] = useState<string>('');
     const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [uploadResult, setUploadResult] = useState<any>(null);
     const [error, setError] = useState<string>('');
+    const [resultadosDetalhados, setResultadosDetalhados] = useState<ResultadoDetalhado[]>([]);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
@@ -82,8 +101,14 @@ const UploadForm = () => {
 
     const handleProcessarFila = async () => {
         try {
-            setIsUploading(true);
+            setIsProcessing(true);
             const response = await axios.post(`${API_URL}/processar-fila`);
+
+            // Atualizar resultados detalhados
+            if (response.data?.resultado?.resultadosDetalhados) {
+                setResultadosDetalhados(response.data.resultado.resultadosDetalhados);
+            }
+
             setUploadResult((prev: any) => ({
                 ...prev,
                 filaProcessada: response.data
@@ -92,7 +117,7 @@ const UploadForm = () => {
             console.error('Erro ao processar fila:', err);
             setError(err.response?.data?.error || 'Erro ao processar a fila de envios');
         } finally {
-            setIsUploading(false);
+            setIsProcessing(false);
         }
     };
 
@@ -102,6 +127,18 @@ const UploadForm = () => {
         setHoraIntimacao('');
         setUploadResult(null);
         setError('');
+        setResultadosDetalhados([]);
+    };
+
+    const getStatusChip = (status: string) => {
+        switch (status) {
+            case 'enviado':
+                return <Chip icon={<CheckCircle />} label="Enviado" color="success" size="small" />;
+            case 'erro':
+                return <Chip icon={<Error />} label="Erro" color="error" size="small" />;
+            default:
+                return <Chip label={status} color="default" size="small" />;
+        }
     };
 
     return (
@@ -141,9 +178,9 @@ const UploadForm = () => {
                                     fullWidth
                                     startIcon={<Send />}
                                     onClick={handleProcessarFila}
-                                    disabled={isUploading}
+                                    disabled={isProcessing}
                                 >
-                                    Processar Fila de Envio
+                                    {isProcessing ? 'Processando...' : 'Processar Fila de Envio'}
                                 </Button>
                             </Grid>
                             <Grid item xs={6}>
@@ -151,7 +188,7 @@ const UploadForm = () => {
                                     variant="outlined"
                                     fullWidth
                                     onClick={resetForm}
-                                    disabled={isUploading}
+                                    disabled={isProcessing}
                                 >
                                     Novo Upload
                                 </Button>
@@ -164,6 +201,41 @@ const UploadForm = () => {
                                     Fila processada: {uploadResult.filaProcessada.resultado.processados} mensagens enviadas.
                                 </Typography>
                             </Alert>
+                        )}
+
+                        {/* Exibir resultados detalhados */}
+                        {resultadosDetalhados.length > 0 && (
+                            <Box sx={{ mt: 3 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Detalhes do Processamento
+                                </Typography>
+                                <TableContainer sx={{ maxHeight: 400 }}>
+                                    <Table stickyHeader size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>ID</TableCell>
+                                                <TableCell>Nome</TableCell>
+                                                <TableCell>Telefone</TableCell>
+                                                <TableCell>Status</TableCell>
+                                                <TableCell>Mensagem</TableCell>
+                                                <TableCell>Hora</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {resultadosDetalhados.map((item) => (
+                                                <TableRow key={item.id}>
+                                                    <TableCell>{item.id}</TableCell>
+                                                    <TableCell>{item.nome}</TableCell>
+                                                    <TableCell>{item.telefone}</TableCell>
+                                                    <TableCell>{getStatusChip(item.status)}</TableCell>
+                                                    <TableCell>{item.mensagem}</TableCell>
+                                                    <TableCell>{item.hora}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            </Box>
                         )}
 
                     </Box>
@@ -218,7 +290,7 @@ const UploadForm = () => {
 
                             <Grid item xs={12} sm={6}>
                                 <TextField
-                                    label="Horário Limite"
+                                    label="Horário Limite para comparecimento"
                                     fullWidth
                                     required
                                     value={horaIntimacao}

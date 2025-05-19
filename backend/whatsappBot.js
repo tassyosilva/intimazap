@@ -204,10 +204,20 @@ async function processarFilaIntimacoes() {
 
         // Contador de processados
         let processados = 0;
+        const resultadosDetalhados = [];
 
         // Processar cada intimação individualmente, com pausa entre elas
         for (let i = 0; i < result.rows.length; i++) {
             const intimacao = result.rows[i];
+            const registro = {
+                id: intimacao.id,
+                nome: intimacao.nome,
+                telefone: intimacao.telefone,
+                status: '',
+                mensagem: '',
+                hora: new Date().toLocaleTimeString('pt-BR')
+            };
+
             try {
                 // Formatar o número corretamente
                 let numeroFormatado = formatarNumeroTelefone(intimacao.telefone);
@@ -223,6 +233,9 @@ async function processarFilaIntimacoes() {
                 // Enviar a mensagem específica para este número
                 await enviarMensagem(numeroFormatado, intimacao.mensagem);
                 console.log(`Mensagem enviada com sucesso para ${intimacao.nome}`);
+
+                registro.status = 'enviado';
+                registro.mensagem = 'Mensagem enviada com sucesso';
 
                 // Usar JavaScript para obter a hora local e formatá-la para salvar
                 const agora = new Date();
@@ -270,6 +283,9 @@ async function processarFilaIntimacoes() {
             } catch (error) {
                 console.error(`Erro ao enviar intimação #${intimacao.id}:`, error);
 
+                registro.status = 'erro';
+                registro.mensagem = error.message || 'Erro desconhecido';
+
                 // Atualizar status para erro
                 await pool.query(
                     'UPDATE intimacoes SET status = $1 WHERE id = $2',
@@ -285,9 +301,14 @@ async function processarFilaIntimacoes() {
                 // Pausa após erro
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
+
+            resultadosDetalhados.push(registro);
         }
 
-        return { processados };
+        return {
+            processados,
+            resultadosDetalhados
+        };
     } catch (error) {
         console.error('Erro ao processar fila de intimações:', error);
         throw error;
