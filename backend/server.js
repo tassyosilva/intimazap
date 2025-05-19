@@ -6,7 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
 const { initDatabase, pool } = require('./db');
-const { startBot, processarFilaIntimacoes, getConnectionStatus, disconnectBot, getDeviceInfo } = require('./whatsappBot');
+const { startBot, processarFilaIntimacoes, getConnectionStatus, disconnectBot, getDeviceInfo, enviarMensagem } = require('./whatsappBot');
 const { processarPlanilha, obterEstatisticas, listarIntimacoes } = require('./processor');
 
 require('dotenv').config();
@@ -381,6 +381,109 @@ app.get('/api/progresso-envio', autenticarUsuario, (req, res) => {
         ativo: processoEnvioAtivo,
         ...progressoEnvio
     });
+});
+
+// Rota para finalizar uma intimação
+app.post('/api/intimacoes/:id/finalizar', autenticarUsuario, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Verificar se a intimação existe
+        const checkResult = await pool.query(
+            'SELECT * FROM intimacoes WHERE id = $1',
+            [id]
+        );
+
+        if (checkResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Intimação não encontrada' });
+        }
+
+        // Atualizar o status para 'finalizado'
+        await pool.query(
+            'UPDATE intimacoes SET status = $1 WHERE id = $2',
+            ['finalizado', id]
+        );
+
+        // Registrar no log
+        await pool.query(
+            'INSERT INTO logs_envio (intimacao_id, status) VALUES ($1, $2)',
+            [id, 'finalizado']
+        );
+
+        res.json({
+            success: true,
+            message: 'Intimação finalizada com sucesso',
+            id: parseInt(id)
+        });
+    } catch (error) {
+        console.error('Erro ao finalizar intimação:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para reenviar uma intimação
+app.post('/api/intimacoes/:id/reenviar', autenticarUsuario, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Buscar informações da intimação
+        const result = await pool.query(
+            'SELECT * FROM intimacoes WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Intimação não encontrada' });
+        }
+
+        const intimacao = result.rows[0];
+
+        // Verificar se o WhatsApp está conectado
+        const { isConnected } = getConnectionStatus();
+        if (!isConnected) {
+            return res.status(400).json({ error: 'WhatsApp não está conectado' });
+        }
+
+        try {
+            // Tentar enviar a mensagem
+            await enviarMensagem(intimacao.telefone, intimacao.mensagem);
+
+            // Atualizar status e data de envio
+            await pool.query(
+                'UPDATE intimacoes SET status = $1, data_envio = CURRENT_TIMESTAMP WHERE id = $2',
+                ['enviado', id]
+            );
+
+            // Registrar log
+            await pool.query(
+                'INSERT INTO logs_envio (intimacao_id, status) VALUES ($1, $2)',
+                [id, 'enviado']
+            );
+
+            res.json({
+                success: true,
+                message: 'Intimação reenviada com sucesso',
+                id: parseInt(id)
+            });
+        } catch (error) {
+            // Atualizar status para erro
+            await pool.query(
+                'UPDATE intimacoes SET status = $1 WHERE id = $2',
+                ['erro', id]
+            );
+
+            // Registrar log de erro
+            await pool.query(
+                'INSERT INTO logs_envio (intimacao_id, status, erro) VALUES ($1, $2, $3)',
+                [id, 'erro', error.message || 'Erro desconhecido']
+            );
+
+            throw error;
+        }
+    } catch (error) {
+        console.error('Erro ao reenviar intimação:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Iniciar o servidor

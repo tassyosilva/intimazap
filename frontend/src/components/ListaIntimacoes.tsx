@@ -19,9 +19,16 @@ import {
     Grid,
     CircularProgress,
     Alert,
-    Button
+    Button,
+    IconButton,
+    Tooltip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle
 } from '@mui/material';
-import { Search, Refresh } from '@mui/icons-material';
+import { Search, Refresh, Send, CheckCircle } from '@mui/icons-material';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/api';
@@ -51,6 +58,22 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
     const [total, setTotal] = useState(0);
     const [filterStatus, setFilterStatus] = useState('');
     const [filterText, setFilterText] = useState('');
+
+    // Novo estado para controlar os diálogos de confirmação
+    const [dialogConfirm, setDialogConfirm] = useState({
+        open: false,
+        action: '',
+        intimacaoId: 0,
+        nome: '',
+        telefone: ''
+    });
+
+    // Novo estado para controlar o loading individual dos botões
+    const [actionLoading, setActionLoading] = useState({
+        id: 0,
+        action: '',
+        loading: false
+    });
 
     const fetchIntimacoes = async () => {
         try {
@@ -102,6 +125,67 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
         setTimeout(fetchIntimacoes, 100);
     };
 
+    // Função para abrir o diálogo de confirmação
+    const openConfirmDialog = (action: string, intimacao: Intimacao) => {
+        setDialogConfirm({
+            open: true,
+            action,
+            intimacaoId: intimacao.id,
+            nome: intimacao.nome,
+            telefone: intimacao.telefone
+        });
+    };
+
+    // Função para fechar o diálogo de confirmação
+    const closeConfirmDialog = () => {
+        setDialogConfirm({
+            open: false,
+            action: '',
+            intimacaoId: 0,
+            nome: '',
+            telefone: ''
+        });
+    };
+
+    // Função para finalizar a intimação
+    const handleFinalizar = async (id: number) => {
+        try {
+            setActionLoading({ id, action: 'finalizar', loading: true });
+            await axios.post(`${API_URL}/intimacoes/${id}/finalizar`);
+
+            // Atualizar localmente o status da intimação
+            setIntimacoes(prev =>
+                prev.map(item =>
+                    item.id === id ? { ...item, status: 'finalizado' } : item
+                )
+            );
+
+            closeConfirmDialog();
+        } catch (err: any) {
+            console.error('Erro ao finalizar intimação:', err);
+            setError(err.response?.data?.error || 'Erro ao finalizar intimação');
+        } finally {
+            setActionLoading({ id: 0, action: '', loading: false });
+        }
+    };
+
+    // Função para reenviar a intimação
+    const handleReenviar = async (id: number) => {
+        try {
+            setActionLoading({ id, action: 'reenviar', loading: true });
+            await axios.post(`${API_URL}/intimacoes/${id}/reenviar`);
+
+            // Atualizar a lista após o reenvio
+            fetchIntimacoes();
+            closeConfirmDialog();
+        } catch (err: any) {
+            console.error('Erro ao reenviar intimação:', err);
+            setError(err.response?.data?.error || 'Erro ao reenviar intimação');
+        } finally {
+            setActionLoading({ id: 0, action: '', loading: false });
+        }
+    };
+
     const getStatusChip = (status: string) => {
         switch (status) {
             case 'pendente':
@@ -110,6 +194,8 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                 return <Chip label="Enviado" color="success" size="small" />;
             case 'erro':
                 return <Chip label="Erro" color="error" size="small" />;
+            case 'finalizado':
+                return <Chip label="Finalizado" color="default" size="small" />;
             default:
                 return <Chip label={status} color="default" size="small" />;
         }
@@ -145,6 +231,7 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                             <MenuItem value="pendente">Pendente</MenuItem>
                             <MenuItem value="enviado">Enviado</MenuItem>
                             <MenuItem value="erro">Erro</MenuItem>
+                            <MenuItem value="finalizado">Finalizado</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
@@ -191,12 +278,13 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                                     <TableCell>Data limite para comparecimento</TableCell>
                                     <TableCell>Status</TableCell>
                                     <TableCell>Data do Envio</TableCell>
+                                    <TableCell>Ações</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
                                 {intimacoes.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} align="center">
+                                        <TableCell colSpan={7} align="center">
                                             Nenhuma intimação encontrada
                                         </TableCell>
                                     </TableRow>
@@ -214,6 +302,37 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                                                 {intimacao.data_envio
                                                     ? new Date(intimacao.data_envio).toLocaleString('pt-BR')
                                                     : '-'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                                    {intimacao.status !== 'finalizado' && (
+                                                        <Tooltip title="Reenviar intimação">
+                                                            <IconButton
+                                                                size="small"
+                                                                color="primary"
+                                                                onClick={() => openConfirmDialog('reenviar', intimacao)}
+                                                                disabled={actionLoading.id === intimacao.id && actionLoading.action === 'reenviar' && actionLoading.loading}
+                                                            >
+                                                                {actionLoading.id === intimacao.id && actionLoading.action === 'reenviar' && actionLoading.loading ?
+                                                                    <CircularProgress size={20} /> : <Send fontSize="small" />}
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+
+                                                    {intimacao.status !== 'finalizado' && (
+                                                        <Tooltip title="Finalizar intimação">
+                                                            <IconButton
+                                                                size="small"
+                                                                color="success"
+                                                                onClick={() => openConfirmDialog('finalizar', intimacao)}
+                                                                disabled={actionLoading.id === intimacao.id && actionLoading.action === 'finalizar' && actionLoading.loading}
+                                                            >
+                                                                {actionLoading.id === intimacao.id && actionLoading.action === 'finalizar' && actionLoading.loading ?
+                                                                    <CircularProgress size={20} /> : <CheckCircle fontSize="small" />}
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                </Box>
                                             </TableCell>
                                         </TableRow>
                                     ))
@@ -235,6 +354,38 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                     />
                 </>
             )}
+
+            {/* Diálogo de Confirmação */}
+            <Dialog
+                open={dialogConfirm.open}
+                onClose={closeConfirmDialog}
+            >
+                <DialogTitle>
+                    {dialogConfirm.action === 'finalizar' ? 'Finalizar Intimação' : 'Reenviar Intimação'}
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        {dialogConfirm.action === 'finalizar'
+                            ? `Deseja finalizar a intimação para ${dialogConfirm.nome}?`
+                            : `Deseja reenviar a intimação para ${dialogConfirm.nome} (${dialogConfirm.telefone})?`
+                        }
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeConfirmDialog} color="inherit">Cancelar</Button>
+                    <Button
+                        onClick={() =>
+                            dialogConfirm.action === 'finalizar'
+                                ? handleFinalizar(dialogConfirm.intimacaoId)
+                                : handleReenviar(dialogConfirm.intimacaoId)
+                        }
+                        color={dialogConfirm.action === 'finalizar' ? 'success' : 'primary'}
+                        variant="contained"
+                    >
+                        {dialogConfirm.action === 'finalizar' ? 'Finalizar' : 'Reenviar'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Paper>
     );
 };

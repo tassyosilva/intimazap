@@ -9,7 +9,7 @@ import {
     Alert,
     Button
 } from '@mui/material';
-import { Refresh, Check, Error, Pending, MoreHoriz } from '@mui/icons-material';
+import { Refresh, Check, Error, Pending, MoreHoriz, TaskAlt } from '@mui/icons-material';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:3000/api';
@@ -59,6 +59,8 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
                 return <Error />;
             case 'pendente':
                 return <Pending />;
+            case 'finalizado':
+                return <TaskAlt />;
             default:
                 return <MoreHoriz />; // Ícone padrão em vez de null
         }
@@ -72,6 +74,8 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
                 return 'error';
             case 'pendente':
                 return 'warning';
+            case 'finalizado':
+                return 'default';
             default:
                 return 'default';
         }
@@ -85,6 +89,8 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
                 return 'Erros';
             case 'pendente':
                 return 'Pendentes';
+            case 'finalizado':
+                return 'Finalizados';
             default:
                 return status;
         }
@@ -142,7 +148,7 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
                     </Grid>
 
                     {estatisticas.porStatus.map((item) => (
-                        <Grid item xs={12} sm={4} key={item.status}>
+                        <Grid item xs={12} sm={3} key={item.status}>
                             <Box sx={{
                                 p: 2,
                                 border: `1px solid ${getStatusColor(item.status) === 'success' ? '#4caf50' :
