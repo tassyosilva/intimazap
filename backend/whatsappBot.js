@@ -15,6 +15,19 @@ let isConnected = false;
 let connectionStatus = 'desconectado';
 let deviceInfo = null;
 
+// Garantir acesso às variáveis globais
+if (!global.atualizarProgressoEnvio) {
+    global.atualizarProgressoEnvio = function (item) {
+        console.log('Função atualizarProgressoEnvio não disponível!');
+    };
+}
+
+if (!global.resetarProgressoEnvio) {
+    global.resetarProgressoEnvio = function (total = 0) {
+        console.log('Função resetarProgressoEnvio não disponível!');
+    };
+}
+
 // Função para iniciar o bot WhatsApp
 async function startBot() {
     await fs.ensureDir('./auth_info_baileys');
@@ -193,7 +206,11 @@ async function processarFilaIntimacoes() {
             ['pendente']
         );
 
-        console.log(`Processando ${result.rows.length} intimações pendentes`);
+        const totalIntimacoes = result.rows.length;
+        console.log(`Processando ${totalIntimacoes} intimações pendentes`);
+
+        // Resetar progresso global
+        global.resetarProgressoEnvio(totalIntimacoes);
 
         // Debug: listar todas as intimações com detalhes específicos
         for (let i = 0; i < result.rows.length; i++) {
@@ -215,7 +232,8 @@ async function processarFilaIntimacoes() {
                 telefone: intimacao.telefone,
                 status: '',
                 mensagem: '',
-                hora: new Date().toLocaleTimeString('pt-BR')
+                hora: new Date().toLocaleTimeString('pt-BR'),
+                progresso: `${i + 1}/${totalIntimacoes}`
             };
 
             try {
@@ -276,6 +294,10 @@ async function processarFilaIntimacoes() {
 
                 processados++;
 
+                // Atualizar progresso global
+                global.atualizarProgressoEnvio(registro);
+                resultadosDetalhados.push(registro);
+
                 // Pausa maior entre envios para evitar problemas de sincronização e limite de taxa
                 console.log(`Aguardando 5 segundos antes do próximo envio...`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
@@ -298,12 +320,17 @@ async function processarFilaIntimacoes() {
                     [intimacao.id, 'erro', error.message || 'Erro desconhecido']
                 );
 
+                // Atualizar progresso global
+                global.atualizarProgressoEnvio(registro);
+                resultadosDetalhados.push(registro);
+
                 // Pausa após erro
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
-
-            resultadosDetalhados.push(registro);
         }
+
+        // Finalizar processo de envio
+        global.processoEnvioAtivo = false;
 
         return {
             processados,
@@ -311,6 +338,8 @@ async function processarFilaIntimacoes() {
         };
     } catch (error) {
         console.error('Erro ao processar fila de intimações:', error);
+        // Finalizar processo em caso de erro
+        global.processoEnvioAtivo = false;
         throw error;
     }
 }

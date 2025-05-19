@@ -11,6 +11,34 @@ const { processarPlanilha, obterEstatisticas, listarIntimacoes } = require('./pr
 
 require('dotenv').config();
 
+// Funções para acompanhar progresso do envio
+function atualizarProgressoEnvio(item) {
+    global.progressoEnvio.processados++;
+    global.progressoEnvio.porcentagem = Math.round((global.progressoEnvio.processados / global.progressoEnvio.total) * 100);
+    global.progressoEnvio.itensProcessados.push(item);
+}
+
+function resetarProgressoEnvio(total = 0) {
+    global.processoEnvioAtivo = total > 0;
+    global.progressoEnvio = {
+        total,
+        processados: 0,
+        porcentagem: 0,
+        itensProcessados: []
+    };
+}
+
+// Tornando as funções de progresso disponíveis globalmente
+global.processoEnvioAtivo = false;
+global.progressoEnvio = {
+    total: 0,
+    processados: 0,
+    porcentagem: 0,
+    itensProcessados: []
+};
+global.atualizarProgressoEnvio = atualizarProgressoEnvio;
+global.resetarProgressoEnvio = resetarProgressoEnvio;
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -273,29 +301,11 @@ Em caso de dúvidas, entre em contato através do número (95)99168-7209
 A confirmação da titularidade desta conta de WhatsApp pela Polícia Civil do Estado de Roraima pode ser conferida acessando o site da PCRR no link abaixo: 
 https://policiacivil.rr.gov.br/intimacao-eletronica-pcrr/`;
 
-            // Inserir o template padrão no banco - COM TRATAMENTO DE ERRO DE DUPLICIDADE
-            try {
-                await pool.query(
-                    'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2) ON CONFLICT (chave) DO UPDATE SET valor = $2',
-                    ['template_mensagem', templatePadrao]
-                );
-            } catch (insertError) {
-                console.error('Erro ao inserir template padrão, tentando método alternativo:', insertError);
-
-                // Se a versão do PostgreSQL não suportar ON CONFLICT, tente outro método
-                const checkIfExists = await pool.query('SELECT COUNT(*) FROM config_sistema WHERE chave = $1', ['template_mensagem']);
-                if (parseInt(checkIfExists.rows[0].count) === 0) {
-                    await pool.query(
-                        'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2)',
-                        ['template_mensagem', templatePadrao]
-                    );
-                } else {
-                    await pool.query(
-                        'UPDATE config_sistema SET valor = $1 WHERE chave = $2',
-                        [templatePadrao, 'template_mensagem']
-                    );
-                }
-            }
+            // Inserir o template padrão no banco
+            await pool.query(
+                'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2)',
+                ['template_mensagem', templatePadrao]
+            );
 
             res.json({ template: templatePadrao });
         }
@@ -336,6 +346,41 @@ app.post('/api/template-mensagem', autenticarUsuario, async (req, res) => {
         console.error('Erro ao atualizar template de mensagem:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+// Variáveis globais para acompanhar progresso do envio
+let processoEnvioAtivo = false;
+let progressoEnvio = {
+    total: 0,
+    processados: 0,
+    porcentagem: 0,
+    itensProcessados: []
+};
+
+// Função para atualizar o progresso
+function atualizarProgressoEnvio(item) {
+    progressoEnvio.processados++;
+    progressoEnvio.porcentagem = Math.round((progressoEnvio.processados / progressoEnvio.total) * 100);
+    progressoEnvio.itensProcessados.push(item);
+}
+
+// Função para resetar o progresso
+function resetarProgressoEnvio(total = 0) {
+    processoEnvioAtivo = total > 0;
+    progressoEnvio = {
+        total,
+        processados: 0,
+        porcentagem: 0,
+        itensProcessados: []
+    };
+}
+
+// Rota para obter o progresso do envio
+app.get('/api/progresso-envio', autenticarUsuario, (req, res) => {
+    res.json({
+        ativo: processoEnvioAtivo,
+        ...progressoEnvio
+    });
 });
 
 // Iniciar o servidor

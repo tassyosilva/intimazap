@@ -26,6 +26,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { ptBR } from 'date-fns/locale';
 import { format } from 'date-fns';
+import ProgressoEnvio from './ProgressoEnvio';
+
 
 const API_URL = 'http://localhost:3000/api';
 
@@ -47,6 +49,7 @@ const UploadForm = () => {
     const [uploadResult, setUploadResult] = useState<any>(null);
     const [error, setError] = useState<string>('');
     const [resultadosDetalhados, setResultadosDetalhados] = useState<ResultadoDetalhado[]>([]);
+    const [showProgress, setShowProgress] = useState<boolean>(false);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files.length > 0) {
@@ -99,9 +102,17 @@ const UploadForm = () => {
         }
     };
 
+    const handleProcessComplete = () => {
+        setShowProgress(false);
+        // Atualizar os resultados
+        setIsProcessing(false);
+    };
+
     const handleProcessarFila = async () => {
         try {
             setIsProcessing(true);
+            setShowProgress(true);
+
             const response = await axios.post(`${API_URL}/processar-fila`);
 
             // Atualizar resultados detalhados
@@ -116,7 +127,7 @@ const UploadForm = () => {
         } catch (err: any) {
             console.error('Erro ao processar fila:', err);
             setError(err.response?.data?.error || 'Erro ao processar a fila de envios');
-        } finally {
+            setShowProgress(false);
             setIsProcessing(false);
         }
     };
@@ -195,7 +206,12 @@ const UploadForm = () => {
                             </Grid>
                         </Grid>
 
-                        {uploadResult.filaProcessada && (
+                        {/* Componente de Progresso */}
+                        <ProgressoEnvio
+                            visible={showProgress}
+                            onComplete={handleProcessComplete}
+                        />
+                        {uploadResult.filaProcessada && !showProgress && (
                             <Alert severity="info" sx={{ mt: 2 }}>
                                 <Typography variant="body1">
                                     Fila processada: {uploadResult.filaProcessada.resultado.processados} mensagens enviadas.
