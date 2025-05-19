@@ -9,9 +9,9 @@ import {
   Container,
   alpha,
   styled,
-  useTheme  // Adicione esta linha
+  useTheme
 } from '@mui/material';
-import { Send, Refresh } from '@mui/icons-material';
+import { ExitToApp, AccountCircle } from '@mui/icons-material';
 import axios from 'axios';
 
 // Componentes
@@ -20,8 +20,6 @@ import MenuLateral from './components/MenuLateral';
 import Dashboard from './components/Dashboard';
 import UploadForm from './components/UploadForm';
 import GerenciarUsuarios from './components/GerenciarUsuarios';
-
-const API_URL = 'http://localhost:3000/api';
 
 // AppBar estilizado
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
@@ -46,8 +44,7 @@ function App() {
   const theme = useTheme();
   const [authenticated, setAuthenticated] = useState(false);
   const [usuario, setUsuario] = useState<any>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [refreshTrigger] = useState(0);
   const [currentPage, setCurrentPage] = useState('dashboard');
 
   useEffect(() => {
@@ -79,23 +76,6 @@ function App() {
     delete axios.defaults.headers.common['Authorization'];
     setUsuario(null);
     setAuthenticated(false);
-  };
-
-  const handleProcessarFila = async () => {
-    try {
-      setIsProcessing(true);
-      await axios.post(`${API_URL}/processar-fila`);
-      // Atualizar componentes após processar a fila
-      setRefreshTrigger(prev => prev + 1);
-    } catch (error) {
-      console.error('Erro ao processar fila:', error);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleRefresh = () => {
-    setRefreshTrigger(prev => prev + 1);
   };
 
   const handlePageChange = (page: string) => {
@@ -132,30 +112,29 @@ function App() {
             IntimaZap
           </Typography>
 
-          <ActionButton
-            color="inherit"
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={handleRefresh}
-          >
-            Atualizar
-          </ActionButton>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+              <AccountCircle sx={{ mr: 1 }} />
+              <Typography variant="body2" color="inherit">
+                {usuario?.nome || 'Usuário'}
+              </Typography>
+            </Box>
 
-          <ActionButton
-            color="inherit"
-            variant="contained"
-            startIcon={<Send />}
-            onClick={handleProcessarFila}
-            disabled={isProcessing}
-            sx={{
-              bgcolor: alpha(theme.palette.common.white, 0.2),
-              '&:hover': {
-                bgcolor: alpha(theme.palette.common.white, 0.3),
-              }
-            }}
-          >
-            {isProcessing ? 'Processando...' : 'Processar Fila'}
-          </ActionButton>
+            <ActionButton
+              color="inherit"
+              variant="contained"
+              startIcon={<ExitToApp />}
+              onClick={handleLogout}
+              sx={{
+                bgcolor: alpha(theme.palette.common.white, 0.2),
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.common.white, 0.3),
+                }
+              }}
+            >
+              Sair
+            </ActionButton>
+          </Box>
         </Toolbar>
       </StyledAppBar>
 
@@ -164,7 +143,6 @@ function App() {
         onPageChange={handlePageChange}
         currentPage={currentPage}
         usuario={usuario}
-        onLogout={handleLogout}
       />
 
       {/* Conteúdo Principal */}

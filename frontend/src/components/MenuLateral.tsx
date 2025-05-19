@@ -1,9 +1,8 @@
-import React from 'react';
 import {
     Drawer,
     List,
     ListItem,
-    ListItemButton, // Adicione isto
+    ListItemButton,
     ListItemIcon,
     ListItemText,
     Divider,
@@ -12,21 +11,18 @@ import {
     Typography,
     useTheme,
     alpha,
-    styled,
-    Button
+    styled
 } from '@mui/material';
 import {
     Dashboard,
     PeopleAlt,
-    Send,
-    ExitToApp,
-    AccountCircle} from '@mui/icons-material';
+    Send
+} from '@mui/icons-material';
 
 interface MenuLateralProps {
     onPageChange: (page: string) => void;
     currentPage: string;
     usuario: { nome: string; tipo: string };
-    onLogout: () => void;
 }
 
 const drawerWidth = 240;
@@ -74,8 +70,7 @@ const StyledListItemButton = styled(ListItemButton)(({ theme }) => ({
 const MenuLateral: React.FC<MenuLateralProps> = ({
     onPageChange,
     currentPage,
-    usuario,
-    onLogout
+    usuario
 }) => {
     const theme = useTheme();
 
@@ -145,50 +140,6 @@ const MenuLateral: React.FC<MenuLateralProps> = ({
             </Box>
 
             <Divider sx={{ borderColor: alpha(theme.palette.common.white, 0.1) }} />
-
-            <Box
-                sx={{
-                    p: 2,
-                    backgroundColor: alpha('#000', 0.2)
-                }}
-            >
-                <Typography
-                    variant="body2"
-                    align="center"
-                    sx={{ opacity: 0.7, mb: 1 }}
-                >
-                    Logado como
-                </Typography>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        mb: 2
-                    }}
-                >
-                    <AccountCircle sx={{ mr: 1 }} />
-                    <Typography variant="body1" fontWeight="bold">
-                        {usuario.nome}
-                    </Typography>
-                </Box>
-                <Button
-                    fullWidth
-                    variant="contained"
-                    color="error"
-                    startIcon={<ExitToApp />}
-                    onClick={onLogout}
-                    sx={{
-                        mt: 1,
-                        backgroundColor: alpha('#f44336', 0.8),
-                        '&:hover': {
-                            backgroundColor: '#f44336',
-                        }
-                    }}
-                >
-                    Sair
-                </Button>
-            </Box>
         </StyledDrawer>
     );
 };
