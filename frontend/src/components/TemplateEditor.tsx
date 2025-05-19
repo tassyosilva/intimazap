@@ -13,7 +13,7 @@ import {
 import { Save, Info } from '@mui/icons-material';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api';
 
 const TemplateEditor: React.FC = () => {
     const [template, setTemplate] = useState('');

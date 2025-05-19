@@ -11,7 +11,7 @@ import {
 import axios from 'axios';
 import logo from '../assets/logo.png'; // Importando o logo
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api';
 
 interface LoginProps {
     onLogin: (token: string, usuario: any) => void;

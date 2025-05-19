@@ -8,6 +8,17 @@ const fs = require('fs-extra');
 const path = require('path');
 const { pool } = require('./db');
 
+// Verificar se está em ambiente Docker
+const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER_ENV === 'true';
+console.log(`Executando em ambiente Docker: ${isDocker ? 'Sim' : 'Não'}`);
+
+// Definir o caminho para o diretório de autenticação baseado no ambiente
+const AUTH_DIR = isDocker
+    ? path.resolve('/app/auth_info_baileys')
+    : path.join(__dirname, 'auth_info_baileys');
+
+console.log(`Diretório de autenticação configurado: ${AUTH_DIR}`);
+
 // Configuração para armazenar estados de conexão
 let sock = null;
 let qrString = null;
@@ -30,87 +41,146 @@ if (!global.resetarProgressoEnvio) {
 
 // Função para iniciar o bot WhatsApp
 async function startBot() {
-    await fs.ensureDir('./auth_info_baileys');
+    try {
+        // Garantir que o diretório exista e tenha permissões corretas
+        await fs.ensureDir(AUTH_DIR);
+        console.log(`Diretório de autenticação garantido: ${AUTH_DIR}`);
 
-    const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
+        // Verificar permissões do diretório
+        try {
+            await fs.access(AUTH_DIR, fs.constants.R_OK | fs.constants.W_OK);
+            console.log('Diretório de autenticação tem permissões de leitura/escrita');
 
-    sock = makeWASocket({
-        printQRInTerminal: true,
-        auth: state,
-        logger: pino({ level: 'silent' })
-    });
-
-    sock.ev.on('creds.update', saveCreds);
-
-    sock.ev.on('connection.update', async (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (qr) {
-            qrString = qr;
-            connectionStatus = 'aguardando_qr';
-            console.log('QR Code gerado. Escaneie com seu WhatsApp:');
-            qrcode.generate(qr, { small: true });
-        }
-
-        if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect?.error instanceof Boom) ?
-                lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut : true;
-
-            console.log('Conexão fechada devido a ', lastDisconnect?.error);
-            isConnected = false;
-            connectionStatus = 'desconectado';
-            deviceInfo = null; // Limpar informações do dispositivo
-
-            if (shouldReconnect) {
-                console.log('Reconectando...');
-                startBot();
-            } else {
-                console.log('Desconectado permanentemente.');
-            }
-        } else if (connection === 'open') {
-            console.log('Conexão estabelecida com sucesso!');
-            isConnected = true;
-            connectionStatus = 'conectado';
-            qrString = null;
-
-            // Obter e armazenar informações do dispositivo
+            // Listar arquivos no diretório para diagnóstico
+            const files = await fs.readdir(AUTH_DIR);
+            console.log(`Arquivos no diretório de autenticação (${files.length}):`, files);
+        } catch (error) {
+            console.error('Erro de permissão no diretório de autenticação:', error);
+            // Tentar corrigir permissões
             try {
-                const phoneNumber = sock.user?.id?.split(':')[0]?.split('@')[0];
-                const formattedNumber = phoneNumber ? formatPhoneNumber(phoneNumber) : 'Desconhecido';
-                const platform = sock.user?.platform || 'Desconhecido';
-                const pushName = sock.user?.name || 'Desconhecido';
-                const device = sock.user?.phone?.device_manufacturer ?
-                    `${sock.user.phone.device_manufacturer} ${sock.user.phone.device_model}` :
-                    'Desconhecido';
-
-                deviceInfo = {
-                    phoneNumber: formattedNumber,
-                    pushName: pushName,
-                    platform: platform,
-                    device: device,
-                    connectedAt: new Date().toISOString()
-                };
-
-                console.log('Informações do dispositivo:', deviceInfo);
-            } catch (error) {
-                console.error('Erro ao obter informações do dispositivo:', error);
-                deviceInfo = { error: 'Não foi possível obter informações do dispositivo.' };
+                await fs.chmod(AUTH_DIR, 0o755);
+                console.log('Tentativa de correção de permissões aplicada');
+            } catch (permError) {
+                console.error('Falha ao corrigir permissões:', permError);
             }
         }
-    });
 
-    // Adicionar função auxiliar para formatar número de telefone
-    function formatPhoneNumber(phoneNumber) {
-        // Remover o "55" inicial para mostrar apenas DDD + número
-        if (phoneNumber.startsWith('55') && phoneNumber.length >= 12) {
-            const ddd = phoneNumber.substring(2, 4);
-            const numero = phoneNumber.substring(4);
-            return `(${ddd}) ${numero.substring(0, 5)}-${numero.substring(5)}`;
+        // Usar o caminho absoluto para autenticação
+        const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+        console.log('Estado de autenticação carregado com sucesso');
+
+        sock = makeWASocket({
+            printQRInTerminal: true,
+            auth: state,
+            logger: pino({ level: 'silent' })
+        });
+
+        sock.ev.on('creds.update', saveCreds);
+
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
+
+            if (qr) {
+                qrString = qr;
+                connectionStatus = 'aguardando_qr';
+                console.log('QR Code gerado. Escaneie com seu WhatsApp:');
+                qrcode.generate(qr, { small: true });
+            }
+
+            if (connection === 'close') {
+                // Verificar se é o erro 401 específico
+                const statusCode = lastDisconnect?.error?.output?.statusCode;
+                const isAuthError = statusCode === 401 &&
+                    (lastDisconnect?.error?.data?.reason === '401' ||
+                        lastDisconnect?.error?.data?.reason === 'loggedOut');
+
+                console.log(`Conexão fechada. Status code: ${statusCode}, Auth error: ${isAuthError}`);
+
+                // Se for erro de autenticação, limpar os arquivos
+                if (isAuthError) {
+                    console.log('Erro de autenticação detectado. Limpando dados de autenticação...');
+                    try {
+                        // Listar arquivos antes da limpeza
+                        const filesBeforeCleanup = await fs.readdir(AUTH_DIR);
+                        console.log(`Arquivos antes da limpeza: ${filesBeforeCleanup.length}`);
+
+                        // Remover todos os arquivos, mas manter o diretório
+                        const files = await fs.readdir(AUTH_DIR);
+                        for (const file of files) {
+                            await fs.remove(path.join(AUTH_DIR, file));
+                        }
+
+                        console.log('Dados de autenticação limpos com sucesso.');
+                    } catch (error) {
+                        console.error('Erro ao limpar dados de autenticação:', error);
+                    }
+                }
+
+                const shouldReconnect = (lastDisconnect?.error instanceof Boom) ?
+                    lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut : true;
+
+                console.log('Conexão fechada devido a ', lastDisconnect?.error);
+                isConnected = false;
+                connectionStatus = 'desconectado';
+                deviceInfo = null; // Limpar informações do dispositivo
+
+                if (shouldReconnect) {
+                    console.log('Reconectando...');
+                    // Pequeno atraso antes de reconectar
+                    setTimeout(() => {
+                        startBot();
+                    }, 3000);
+                } else {
+                    console.log('Desconectado permanentemente.');
+                }
+            } else if (connection === 'open') {
+                console.log('Conexão estabelecida com sucesso!');
+                isConnected = true;
+                connectionStatus = 'conectado';
+                qrString = null;
+
+                // Obter e armazenar informações do dispositivo
+                try {
+                    const phoneNumber = sock.user?.id?.split(':')[0]?.split('@')[0];
+                    const formattedNumber = phoneNumber ? formatPhoneNumber(phoneNumber) : 'Desconhecido';
+                    const platform = sock.user?.platform || 'Desconhecido';
+                    const pushName = sock.user?.name || 'Desconhecido';
+                    const device = sock.user?.phone?.device_manufacturer ?
+                        `${sock.user.phone.device_manufacturer} ${sock.user.phone.device_model}` :
+                        'Desconhecido';
+
+                    deviceInfo = {
+                        phoneNumber: formattedNumber,
+                        pushName: pushName,
+                        platform: platform,
+                        device: device,
+                        connectedAt: new Date().toISOString()
+                    };
+
+                    console.log('Informações do dispositivo:', deviceInfo);
+                } catch (error) {
+                    console.error('Erro ao obter informações do dispositivo:', error);
+                    deviceInfo = { error: 'Não foi possível obter informações do dispositivo.' };
+                }
+            }
+        });
+
+        // Adicionar função auxiliar para formatar número de telefone
+        function formatPhoneNumber(phoneNumber) {
+            // Remover o "55" inicial para mostrar apenas DDD + número
+            if (phoneNumber.startsWith('55') && phoneNumber.length >= 12) {
+                const ddd = phoneNumber.substring(2, 4);
+                const numero = phoneNumber.substring(4);
+                return `(${ddd}) ${numero.substring(0, 5)}-${numero.substring(5)}`;
+            }
+            return phoneNumber;
         }
-        return phoneNumber;
-    }
 
-    return sock;
+        return sock;
+    } catch (error) {
+        console.error('Erro crítico ao inicializar o bot WhatsApp:', error);
+        throw error;
+    }
 }
 
 // Função para formatar corretamente o número de telefone
@@ -365,8 +435,9 @@ async function disconnectBot() {
         // Verificar se há uma sessão ativa
         if (isConnected) {
             // Limpar diretório de autenticação para forçar nova autenticação
-            await fs.remove('./auth_info_baileys');
-            await fs.ensureDir('./auth_info_baileys');
+            await fs.remove(AUTH_DIR);
+            await fs.ensureDir(AUTH_DIR);
+            console.log(`Diretório de autenticação limpo: ${AUTH_DIR}`);
 
             // Atualizar estado
             isConnected = false;
@@ -395,11 +466,52 @@ function getDeviceInfo() {
     return deviceInfo || null;
 }
 
+// Função de diagnóstico para verificar o estado do diretório de autenticação
+async function diagnosticarDiretorioAuth() {
+    try {
+        const exists = await fs.pathExists(AUTH_DIR);
+
+        let files = [];
+        let stats = null;
+
+        if (exists) {
+            try {
+                files = await fs.readdir(AUTH_DIR);
+                stats = await fs.stat(AUTH_DIR);
+            } catch (err) {
+                console.error('Erro ao ler diretório de autenticação:', err);
+            }
+        }
+
+        return {
+            diretorio: AUTH_DIR,
+            existe: exists,
+            arquivos: files,
+            estatisticas: stats ? {
+                mode: stats.mode.toString(8),
+                uid: stats.uid,
+                gid: stats.gid,
+                size: stats.size
+            } : null,
+            ambiente: {
+                isDocker,
+                nodeEnv: process.env.NODE_ENV,
+                dockerEnv: process.env.DOCKER_ENV
+            }
+        };
+    } catch (error) {
+        console.error('Erro ao diagnosticar diretório de autenticação:', error);
+        return { erro: error.message };
+    }
+}
+
 module.exports = {
     startBot,
     enviarMensagem,
     processarFilaIntimacoes,
     getConnectionStatus,
     disconnectBot,
-    getDeviceInfo
+    getDeviceInfo,
+    diagnosticarDiretorioAuth,  // Nova função para diagnóstico
+    AUTH_DIR  // Exportar o caminho para uso em outros módulos
 };

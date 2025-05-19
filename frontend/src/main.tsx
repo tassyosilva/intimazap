@@ -4,9 +4,8 @@ import App from './App.tsx'
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material'
 import axios from 'axios'
 
-// Configurar o Axios para usar URLs relativas no Docker ou URL completa em desenvolvimento
-const isRunningInDocker = window.location.hostname !== 'localhost' || window.location.port !== '5173';
-axios.defaults.baseURL = isRunningInDocker ? '' : 'http://localhost:3000';
+// Configuração para usar URLs relativas (isso funciona com o Nginx configurado corretamente)
+axios.defaults.baseURL = '';
 
 // Configurar o Axios para adicionar o token em todas as requisições
 const token = localStorage.getItem('token');

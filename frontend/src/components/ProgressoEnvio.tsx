@@ -17,7 +17,7 @@ import {
 import { CheckCircle, Error } from '@mui/icons-material';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api';
 
 interface ItemProcessado {
     id: number;

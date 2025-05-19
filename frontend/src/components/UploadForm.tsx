@@ -34,7 +34,7 @@ import { format } from 'date-fns';
 import ProgressoEnvio from './ProgressoEnvio';
 
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = '/api';
 
 interface ResultadoDetalhado {
     id: number;

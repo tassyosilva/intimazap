@@ -11,6 +11,10 @@ RUN npm install
 # Copiar o código da aplicação
 COPY backend/ ./
 
+# permissoes
+ENV DOCKER_ENV=true
+RUN mkdir -p /app/auth_info_baileys && chmod 755 /app/auth_info_baileys
+
 # Expor a porta que a API usa
 EXPOSE 3000
 
