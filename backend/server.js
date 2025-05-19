@@ -486,6 +486,127 @@ app.post('/api/intimacoes/:id/reenviar', autenticarUsuario, async (req, res) => 
     }
 });
 
+// Rota para reenviar todas as intimações não finalizadas
+app.post('/api/reenviar-nao-finalizadas', autenticarUsuario, async (req, res) => {
+    try {
+        // Verificar se o WhatsApp está conectado
+        const { isConnected } = getConnectionStatus();
+        if (!isConnected) {
+            return res.status(400).json({ error: 'WhatsApp não está conectado' });
+        }
+
+        // Buscar todas as intimações que não estão finalizadas
+        const result = await pool.query(
+            'SELECT * FROM intimacoes WHERE status != $1 ORDER BY id',
+            ['finalizado']
+        );
+
+        const totalIntimacoes = result.rows.length;
+        console.log(`Processando ${totalIntimacoes} intimações não finalizadas para reenvio`);
+
+        // Resetar progresso global
+        global.resetarProgressoEnvio(totalIntimacoes);
+        global.processoEnvioAtivo = true;
+
+        // Contador de processados
+        let processados = 0;
+        const resultadosDetalhados = [];
+
+        // Processar cada intimação individualmente, com pausa entre elas
+        for (let i = 0; i < result.rows.length; i++) {
+            const intimacao = result.rows[i];
+            const registro = {
+                id: intimacao.id,
+                nome: intimacao.nome,
+                telefone: intimacao.telefone,
+                status: '',
+                mensagem: '',
+                hora: new Date().toLocaleTimeString('pt-BR'),
+                progresso: `${i + 1}/${totalIntimacoes}`
+            };
+
+            try {
+                console.log(`\n[PROCESSANDO ${i + 1}/${result.rows.length}] Reenvio de intimação #${intimacao.id} para ${intimacao.nome}`);
+                console.log(`Número: ${intimacao.telefone}`);
+
+                // Pausa antes de enviar (para garantir sincronização)
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Enviar a mensagem específica para este número
+                await enviarMensagem(intimacao.telefone, intimacao.mensagem);
+                console.log(`Mensagem reenviada com sucesso para ${intimacao.nome}`);
+
+                registro.status = 'enviado';
+                registro.mensagem = 'Mensagem reenviada com sucesso';
+
+                // Atualizar status para enviado com timestamp explícito
+                await pool.query(
+                    `UPDATE intimacoes SET status = $1, data_envio = CURRENT_TIMESTAMP WHERE id = $2`,
+                    ['enviado', intimacao.id]
+                );
+
+                // Registrar log de sucesso
+                await pool.query(
+                    'INSERT INTO logs_envio (intimacao_id, status) VALUES ($1, $2)',
+                    [intimacao.id, 'enviado']
+                );
+
+                processados++;
+
+                // Atualizar progresso global
+                global.atualizarProgressoEnvio(registro);
+                resultadosDetalhados.push(registro);
+
+                // Pausa entre envios para evitar problemas de sincronização e limite de taxa
+                console.log(`Aguardando 5 segundos antes do próximo envio...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
+
+            } catch (error) {
+                console.error(`Erro ao reenviar intimação #${intimacao.id}:`, error);
+
+                registro.status = 'erro';
+                registro.mensagem = error.message || 'Erro desconhecido';
+
+                // Atualizar status para erro
+                await pool.query(
+                    'UPDATE intimacoes SET status = $1 WHERE id = $2',
+                    ['erro', intimacao.id]
+                );
+
+                // Registrar log de erro
+                await pool.query(
+                    'INSERT INTO logs_envio (intimacao_id, status, erro) VALUES ($1, $2, $3)',
+                    [intimacao.id, 'erro', error.message || 'Erro desconhecido']
+                );
+
+                // Atualizar progresso global
+                global.atualizarProgressoEnvio(registro);
+                resultadosDetalhados.push(registro);
+
+                // Pausa após erro
+                await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+        }
+
+        // Finalizar processo de envio
+        global.processoEnvioAtivo = false;
+
+        return res.json({
+            success: true,
+            message: `Reenvio de ${processados} intimações concluído`,
+            resultado: {
+                processados,
+                total: totalIntimacoes,
+                resultadosDetalhados
+            }
+        });
+    } catch (error) {
+        console.error('Erro ao reenviar intimações não finalizadas:', error);
+        global.processoEnvioAtivo = false;
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Iniciar o servidor
 app.listen(PORT, async () => {
     console.log(`Servidor rodando na porta ${PORT}`);

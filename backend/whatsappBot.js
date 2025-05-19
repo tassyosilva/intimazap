@@ -200,9 +200,9 @@ async function processarFilaIntimacoes() {
         // Configurar timezone explicitamente para esta transação
         await pool.query(`SET timezone = 'America/Boa_Vista'`);
 
-        // Buscar intimações pendentes no banco de dados
+        // Buscar intimações pendentes no banco de dados (sem limite de 50)
         const result = await pool.query(
-            'SELECT * FROM intimacoes WHERE status = $1 ORDER BY id LIMIT 50',
+            'SELECT * FROM intimacoes WHERE status = $1 ORDER BY id',
             ['pendente']
         );
 
