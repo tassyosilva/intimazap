@@ -14,7 +14,8 @@ import { Check, Error, Warning, QrCode2, PowerSettingsNew } from '@mui/icons-mat
 import axios from 'axios';
 import QRCode from 'qrcode.react';
 
-const API_URL = 'http://localhost:3000/api';
+// Usando URL relativa que será resolvida conforme a config do axios em main.tsx
+const API_URL = '/api';
 
 const WhatsAppConfig = () => {
     const [status, setStatus] = useState<{

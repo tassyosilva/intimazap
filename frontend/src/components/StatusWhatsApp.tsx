@@ -13,7 +13,8 @@ import { Check, Error, Warning, QrCode2 } from '@mui/icons-material';
 import axios from 'axios';
 import QRCode from 'qrcode.react';
 
-const API_URL = 'http://localhost:3000/api';
+// Usando URL relativa que será resolvida conforme a config do axios em main.tsx
+const API_URL = '/api';
 
 const StatusWhatsApp = () => {
     const [status, setStatus] = useState<{
@@ -139,7 +140,7 @@ const StatusWhatsApp = () => {
                     {status?.qrCode && (
                         <Grid item xs={12} md={6}>
                             <Box display="flex" justifyContent="center" p={2} border="1px solid #eee" borderRadius={1}>
-                                        <QRCode value={status.qrCode || ''} size={150} />
+                                <QRCode value={status.qrCode || ''} size={150} />
                             </Box>
                             <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
                                 Escaneie este QR Code com seu WhatsApp

@@ -1,0 +1,39 @@
+version: '3.8'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: intimazap-backend:latest
+    container_name: intimazap-api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=192.168.3.204
+      - DB_USER=postgres
+      - DB_PASSWORD=adm2000!@
+      - DB_NAME=db_intimazap-dev
+      - DB_PORT=5432
+    volumes:
+      - intimazap-auth:/app/auth_info_baileys
+    networks:
+      - intimazap-network
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: intimazap-frontend:latest
+    container_name: intimazap-ui
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - intimazap-network
+volumes:
+  intimazap-auth:
+networks:
+  intimazap-network:
+    driver: bridge

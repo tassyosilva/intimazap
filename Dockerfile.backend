@@ -1,0 +1,18 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copiar package.json e package-lock.json primeiro para aproveitar o cache
+COPY backend/package*.json ./
+
+# Instalar dependências
+RUN npm install
+
+# Copiar o código da aplicação
+COPY backend/ ./
+
+# Expor a porta que a API usa
+EXPOSE 3000
+
+# Comando para executar a aplicação
+CMD ["node", "index.js"]
