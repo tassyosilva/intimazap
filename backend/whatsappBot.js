@@ -13,6 +13,7 @@ let sock = null;
 let qrString = null;
 let isConnected = false;
 let connectionStatus = 'desconectado';
+let deviceInfo = null;
 
 // Função para iniciar o bot WhatsApp
 async function startBot() {
@@ -45,6 +46,7 @@ async function startBot() {
             console.log('Conexão fechada devido a ', lastDisconnect?.error);
             isConnected = false;
             connectionStatus = 'desconectado';
+            deviceInfo = null; // Limpar informações do dispositivo
 
             if (shouldReconnect) {
                 console.log('Reconectando...');
@@ -57,8 +59,43 @@ async function startBot() {
             isConnected = true;
             connectionStatus = 'conectado';
             qrString = null;
+
+            // Obter e armazenar informações do dispositivo
+            try {
+                const phoneNumber = sock.user?.id?.split(':')[0]?.split('@')[0];
+                const formattedNumber = phoneNumber ? formatPhoneNumber(phoneNumber) : 'Desconhecido';
+                const platform = sock.user?.platform || 'Desconhecido';
+                const pushName = sock.user?.name || 'Desconhecido';
+                const device = sock.user?.phone?.device_manufacturer ?
+                    `${sock.user.phone.device_manufacturer} ${sock.user.phone.device_model}` :
+                    'Desconhecido';
+
+                deviceInfo = {
+                    phoneNumber: formattedNumber,
+                    pushName: pushName,
+                    platform: platform,
+                    device: device,
+                    connectedAt: new Date().toISOString()
+                };
+
+                console.log('Informações do dispositivo:', deviceInfo);
+            } catch (error) {
+                console.error('Erro ao obter informações do dispositivo:', error);
+                deviceInfo = { error: 'Não foi possível obter informações do dispositivo.' };
+            }
         }
     });
+
+    // Adicionar função auxiliar para formatar número de telefone
+    function formatPhoneNumber(phoneNumber) {
+        // Remover o "55" inicial para mostrar apenas DDD + número
+        if (phoneNumber.startsWith('55') && phoneNumber.length >= 12) {
+            const ddd = phoneNumber.substring(2, 4);
+            const numero = phoneNumber.substring(4);
+            return `(${ddd}) ${numero.substring(0, 5)}-${numero.substring(5)}`;
+        }
+        return phoneNumber;
+    }
 
     return sock;
 }
@@ -303,10 +340,16 @@ async function disconnectBot() {
     }
 }
 
+// Obter informações do dispositivo
+function getDeviceInfo() {
+    return deviceInfo || null;
+}
+
 module.exports = {
     startBot,
     enviarMensagem,
     processarFilaIntimacoes,
     getConnectionStatus,
-    disconnectBot
+    disconnectBot,
+    getDeviceInfo
 };

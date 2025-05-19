@@ -1,4 +1,3 @@
-// Importando fix-crypto.js primeiro para garantir que as correções sejam aplicadas
 require('./fix-crypto.js');
 
 const express = require('express');
@@ -7,7 +6,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
 const { initDatabase, pool } = require('./db');
-const { startBot, processarFilaIntimacoes, getConnectionStatus, disconnectBot } = require('./whatsappBot');
+const { startBot, processarFilaIntimacoes, getConnectionStatus, disconnectBot, getDeviceInfo } = require('./whatsappBot');
 const { processarPlanilha, obterEstatisticas, listarIntimacoes } = require('./processor');
 
 require('dotenv').config();
@@ -194,6 +193,12 @@ app.post('/api/upload', autenticarUsuario, upload.single('file'), async (req, re
 app.get('/api/status', autenticarUsuario, (req, res) => {
     const status = getConnectionStatus();
     res.json(status);
+});
+
+// Rota para obter informações do dispositivo
+app.get('/api/device-info', autenticarUsuario, (req, res) => {
+    const deviceInfo = getDeviceInfo();
+    res.json(deviceInfo || { message: 'Nenhum dispositivo conectado' });
 });
 
 app.post('/api/disconnect', autenticarUsuario, verificarAdmin, async (req, res) => {
