@@ -1,54 +1,107 @@
-# React + TypeScript + Vite
+# Para rodar em modo de desenvolvimento
+Instale as dependências e rode o backend com "npm start" e o front com "npm run dev"
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# Instalação em Produção no ubuntu server
+apt update
 
-Currently, two official plugins are available:
+# Instalar dependências básicas
+apt install -y git curl wget build-essential
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+# Adicionar repositório Node.js
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 
-## Expanding the ESLint configuration
+# Instalar Node.js
+apt install -y nodejs
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Verificar a instalação
+node -v  # Deve mostrar v18.x.x
+npm -v   # Deve mostrar a versão do npm
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+# Instalar Nginx
+apt install -y nginx
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+# Habilitar e iniciar o Nginx
+systemctl enable nginx
+systemctl start nginx
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+# Criar diretório para a aplicação
+cd /var/www/
+git clone https://github.com/tassyosilva/intimazap.git
+chown -R $USER:$USER /var/www/intimazap
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
+# Entrar no diretório do backend
+cd /var/www/intimazap/backend
+
+# Instalar dependências
+npm install
+
+# Criar arquivo .env
+cat > .env << EOF
+DB_HOST=localhost
+DB_USER=intimazap
+DB_PASSWORD=senha
+DB_NAME=db_intimazap-dev
+DB_PORT=5432
+EOF
+
+# Criar serviço systemd para o backend
+nano /etc/systemd/system/intimazap-backend.service
+
+Conteúdo do arquivo intimazap-backend.service:
+[Unit]
+Description=IntimaZap Backend Service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/intimazap/backend
+ExecStart=/usr/bin/node index.js
+Restart=on-failure
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target
+
+# Configurar permissões
+chown -R www-data:www-data /var/www/intimazap/backend
+chmod -R 755 /var/www/intimazap/backend
+mkdir -p /var/www/intimazap/backend/auth_info_baileys
+chmod -R 777 /var/www/intimazap/backend/auth_info_baileys
+
+# Iniciar o serviço
+systemctl daemon-reload
+systemctl enable intimazap-backend
+systemctl start intimazap-backend
+
+# Verificar status do serviço
+sudo systemctl status intimazap-backend
+
+# Entrar no diretório do frontend
+cd /var/www/intimazap/frontend
+
+# Instalar dependências
+npm install
+
+# Modificar o arquivo src/main.tsx para usar a URL correta da API
+- Encontre essa linha:
+- axios.defaults.baseURL = isRunningInDocker ? '' : 'http://localhost:3000';
+- Altere para:
+- axios.defaults.baseURL = 'endereço';
+
+cd /var/www/intimazap/frontend
+
+# Construir o frontend para produção
+npm run build
+
+# Configurar o Nginx para servir o frontend e fazer proxy para o backend
+nano /etc/nginx/sites-available/intimazap
+
+# Ativar o site e reiniciar o Nginx
+sudo ln -s /etc/nginx/sites-available/intimazap /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default  # Remover o site padrão
+systemctl restart nginx
+
+# Configurar permissões
+chown -R www-data:www-data /var/www/intimazap/frontend/dist
+chmod -R 755 /var/www/intimazap/frontend/dist
