@@ -1,41 +1,41 @@
-desenvolvimento# Para rodar em modo de desenvolvimento
+### Para rodar em modo de desenvolvimento
 Instale as dependências e rode o backend com "npm start" e o front com "npm run dev"
 
-# Instalação em Produção no ubuntu server
+### Instalação em Produção no ubuntu server
 apt update
 
-# Instalar dependências básicas
+### Instalar dependências básicas
 apt install -y git curl wget build-essential
 
-# Adicionar repositório Node.js
+### Adicionar repositório Node.js
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 
-# Instalar Node.js
+### Instalar Node.js
 apt install -y nodejs
 
-# Verificar a instalação
+### Verificar a instalação
 node -v  # Deve mostrar v18.x.x
 npm -v   # Deve mostrar a versão do npm
 
-# Instalar Nginx
+### Instalar Nginx
 apt install -y nginx
 
-# Habilitar e iniciar o Nginx
+### Habilitar e iniciar o Nginx
 systemctl enable nginx
 systemctl start nginx
 
-# Criar diretório para a aplicação
+### Criar diretório para a aplicação
 cd /var/www/
 git clone https://github.com/tassyosilva/intimazap.git
 chown -R $USER:$USER /var/www/intimazap
 
-# Entrar no diretório do backend
+### Entrar no diretório do backend
 cd /var/www/intimazap/backend
 
-# Instalar dependências
+### Instalar dependências
 npm install
 
-# Criar arquivo .env
+### Criar arquivo .env
 cat > .env << EOF
 DB_HOST=localhost
 DB_USER=intimazap
@@ -44,7 +44,7 @@ DB_NAME=db_intimazap-dev
 DB_PORT=5432
 EOF
 
-# Criar serviço systemd para o backend
+### Criar serviço systemd para o backend
 nano /etc/systemd/system/intimazap-backend.service
 
 Conteúdo do arquivo intimazap-backend.service:
@@ -63,45 +63,40 @@ Environment=NODE_ENV=production
 [Install]
 WantedBy=multi-user.target
 
-# Configurar permissões
+### Configurar permissões
 chown -R www-data:www-data /var/www/intimazap/backend
 chmod -R 755 /var/www/intimazap/backend
 mkdir -p /var/www/intimazap/backend/auth_info_baileys
 chmod -R 777 /var/www/intimazap/backend/auth_info_baileys
 
-# Iniciar o serviço
+### Iniciar o serviço
 systemctl daemon-reload
 systemctl enable intimazap-backend
 systemctl start intimazap-backend
 
-# Verificar status do serviço
+### Verificar status do serviço
 sudo systemctl status intimazap-backend
 
-# Entrar no diretório do frontend
+### Entrar no diretório do frontend
 cd /var/www/intimazap/frontend
 
-# Instalar dependências
+### Instalar dependências
 npm install
 
-# Modificar o arquivo src/main.tsx para usar a URL correta da API
-- Encontre essa linha:
-- axios.defaults.baseURL = isRunningInDocker ? '' : 'http://localhost:3000';
-- Altere para:
-- axios.defaults.baseURL = 'endereço';
-
+### Acesse
 cd /var/www/intimazap/frontend
 
-# Construir o frontend para produção
+### Construir o frontend para produção
 npm run build
 
-# Configurar o Nginx para servir o frontend e fazer proxy para o backend
+### Configurar o Nginx para servir o frontend e fazer proxy para o backend
 nano /etc/nginx/sites-available/intimazap
 
-# Ativar o site e reiniciar o Nginx
+### Ativar o site e reiniciar o Nginx
 sudo ln -s /etc/nginx/sites-available/intimazap /etc/nginx/sites-enabled/
 sudo rm /etc/nginx/sites-enabled/default  # Remover o site padrão
 systemctl restart nginx
 
-# Configurar permissões
+### Configurar permissões
 chown -R www-data:www-data /var/www/intimazap/frontend/dist
 chmod -R 755 /var/www/intimazap/frontend/dist
