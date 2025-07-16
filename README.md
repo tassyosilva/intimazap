@@ -1,5 +1,5 @@
 ### Para rodar em modo de desenvolvimento
-Instale as dependências e rode o backend e o frontend com "npm start" ou "npm run dev"
+Instale as dependências e rode o backend com "npm start" e o frontend com "npm run dev"
 
 ### Instalação em Produção no ubuntu server 22.04
 apt update
