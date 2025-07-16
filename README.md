@@ -1,7 +1,7 @@
 ### Para rodar em modo de desenvolvimento
-Instale as dependências e rode o backend com "npm start" e o front com "npm run dev"
+Instale as dependências e rode o backend e o frontend com "npm start" ou "npm run dev"
 
-### Instalação em Produção no ubuntu server
+### Instalação em Produção no ubuntu server 22.04
 apt update
 
 ### Instalar dependências básicas
@@ -35,7 +35,7 @@ cd /var/www/intimazap/backend
 ### Instalar dependências
 npm install
 
-### Criar arquivo .env
+### Criar arquivo .env (PostgreSQL)
 cat > .env << EOF
 DB_HOST=localhost
 DB_USER=intimazap
@@ -100,3 +100,6 @@ systemctl restart nginx
 ### Configurar permissões
 chown -R www-data:www-data /var/www/intimazap/frontend/dist
 chmod -R 755 /var/www/intimazap/frontend/dist
+
+### Problema comum
+Em caso de desconexão e desaparecimento do qrcode, delete a pasta auth_info_baileys dentro de /backend e reinicie o servidor.
