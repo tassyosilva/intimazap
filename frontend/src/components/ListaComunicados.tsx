@@ -19,9 +19,16 @@ import {
     Grid,
     CircularProgress,
     Alert,
-    Button
+    Button,
+    IconButton,
+    Tooltip,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions
 } from '@mui/material';
-import { Search, Refresh, CheckCircle, Error, Pending } from '@mui/icons-material';
+import { Search, Refresh, CheckCircle, Error, Pending, Replay } from '@mui/icons-material';
 import axios from 'axios';
 
 const API_URL = '/api';
@@ -48,6 +55,12 @@ const ListaComunicados: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
     const [total, setTotal] = useState(0);
     const [filterStatus, setFilterStatus] = useState('');
     const [filterText, setFilterText] = useState('');
+    const [actionLoading, setActionLoading] = useState<{ id: number; loading: boolean }>({ id: 0, loading: false });
+    const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; id: number; action: string }>({
+        open: false,
+        id: 0,
+        action: ''
+    });
 
     const fetchComunicados = async () => {
         try {
@@ -91,6 +104,29 @@ const ListaComunicados: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
     const handleFilterChange = () => {
         setPage(0);
         fetchComunicados();
+    };
+
+    const openConfirmDialog = (id: number, action: string) => {
+        setConfirmDialog({ open: true, id, action });
+    };
+
+    const closeConfirmDialog = () => {
+        setConfirmDialog({ open: false, id: 0, action: '' });
+    };
+
+    const handleReenviar = async (id: number) => {
+        try {
+            setActionLoading({ id, loading: true });
+            await axios.post(`${API_URL}/comunicados/${id}/reenviar`);
+
+            await fetchComunicados();
+            closeConfirmDialog();
+        } catch (err: any) {
+            console.error('Erro ao reenviar comunicado:', err);
+            setError(err.response?.data?.error || 'Erro ao reenviar comunicado');
+        } finally {
+            setActionLoading({ id: 0, loading: false });
+        }
     };
 
     const getStatusChip = (status: string) => {
@@ -248,6 +284,7 @@ const ListaComunicados: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                             <TableCell><strong>Nome</strong></TableCell>
                             <TableCell><strong>Telefone</strong></TableCell>
                             <TableCell><strong>Status</strong></TableCell>
+                            <TableCell><strong>Ações</strong></TableCell>
                             <TableCell><strong>Data Criação</strong></TableCell>
                             <TableCell><strong>Data Envio</strong></TableCell>
                         </TableRow>
@@ -259,6 +296,18 @@ const ListaComunicados: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                                 <TableCell>{comunicado.nome}</TableCell>
                                 <TableCell>{comunicado.telefone}</TableCell>
                                 <TableCell>{getStatusChip(comunicado.status)}</TableCell>
+                                <TableCell>
+                                    <Tooltip title="Reenviar comunicado">
+                                        <IconButton
+                                            size="small"
+                                            color="primary"
+                                            onClick={() => openConfirmDialog(comunicado.id, 'reenviar')}
+                                            disabled={actionLoading.id === comunicado.id && actionLoading.loading}
+                                        >
+                                            <Replay />
+                                        </IconButton>
+                                    </Tooltip>
+                                </TableCell>
                                 <TableCell>{formatDate(comunicado.created_at)}</TableCell>
                                 <TableCell>
                                     {comunicado.data_envio ? formatDate(comunicado.data_envio) : '-'}
@@ -290,6 +339,35 @@ const ListaComunicados: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
                     `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`
                 }
             />
+
+            <Dialog
+                open={confirmDialog.open}
+                onClose={closeConfirmDialog}
+                aria-labelledby="alert-dialog-title"
+                aria-describedby="alert-dialog-description"
+            >
+                <DialogTitle id="alert-dialog-title">
+                    Confirmar ação
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="alert-dialog-description">
+                        Tem certeza que deseja reenviar este comunicado?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={closeConfirmDialog} color="primary">
+                        Cancelar
+                    </Button>
+                    <Button
+                        onClick={() => handleReenviar(confirmDialog.id)}
+                        color="primary"
+                        autoFocus
+                        disabled={actionLoading.loading}
+                    >
+                        {actionLoading.loading ? 'Enviando...' : 'Confirmar'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Paper>
     );
 };

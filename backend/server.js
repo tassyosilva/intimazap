@@ -644,6 +644,75 @@ app.post('/api/processar-fila-comunicados', autenticarUsuario, async (req, res) 
     }
 });
 
+// Rota para reenviar um comunicado específico
+app.post('/api/comunicados/:id/reenviar', autenticarUsuario, async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Buscar informações do comunicado
+        const result = await pool.query(
+            'SELECT * FROM comunicados WHERE id = $1',
+            [id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Comunicado não encontrado' });
+        }
+
+        const comunicado = result.rows[0];
+
+        // Verificar se o bot está conectado
+        const { isConnected } = getConnectionStatus();
+        if (!isConnected) {
+            return res.status(400).json({ error: 'WhatsApp não está conectado' });
+        }
+
+        try {
+            // Enviar a mensagem
+            await enviarMensagem(comunicado.telefone, comunicado.mensagem);
+
+            // Atualizar status para enviado
+            await pool.query(
+                'UPDATE comunicados SET status = $1, data_envio = CURRENT_TIMESTAMP WHERE id = $2',
+                ['enviado', id]
+            );
+
+            // Registrar log de sucesso
+            await pool.query(
+                'INSERT INTO logs_comunicados (comunicado_id, status) VALUES ($1, $2)',
+                [id, 'enviado']
+            );
+
+            res.json({
+                success: true,
+                message: 'Comunicado reenviado com sucesso',
+                id: parseInt(id)
+            });
+
+        } catch (error) {
+            console.error(`Erro ao reenviar comunicado #${id}:`, error);
+
+            // Atualizar status para erro
+            await pool.query(
+                'UPDATE comunicados SET status = $1 WHERE id = $2',
+                ['erro', id]
+            );
+
+            // Registrar log de erro
+            await pool.query(
+                'INSERT INTO logs_comunicados (comunicado_id, status, erro) VALUES ($1, $2, $3)',
+                [id, 'erro', error.message]
+            );
+
+            throw error;
+        }
+
+    } catch (error) {
+        console.error('Erro ao reenviar comunicado:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Rota para obter estatísticas de comunicados
 app.get('/api/estatisticas-comunicados', autenticarUsuario, async (req, res) => {
     try {

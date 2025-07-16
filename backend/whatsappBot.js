@@ -590,7 +590,7 @@ async function processarFilaComunicados() {
             resultadosDetalhados.push(registro);
 
             // Atualizar progresso global
-            global.atualizarProgressoEnvio(i + 1, registro);
+            global.atualizarProgressoEnvio(registro);
 
             // Pausa entre envios
             await new Promise(resolve => setTimeout(resolve, 2000));
