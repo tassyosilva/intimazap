@@ -348,38 +348,13 @@ app.post('/api/template-mensagem', autenticarUsuario, async (req, res) => {
     }
 });
 
-// Variáveis globais para acompanhar progresso do envio
-let processoEnvioAtivo = false;
-let progressoEnvio = {
-    total: 0,
-    processados: 0,
-    porcentagem: 0,
-    itensProcessados: []
-};
-
-// Função para atualizar o progresso
-function atualizarProgressoEnvio(item) {
-    progressoEnvio.processados++;
-    progressoEnvio.porcentagem = Math.round((progressoEnvio.processados / progressoEnvio.total) * 100);
-    progressoEnvio.itensProcessados.push(item);
-}
-
-// Função para resetar o progresso
-function resetarProgressoEnvio(total = 0) {
-    processoEnvioAtivo = total > 0;
-    progressoEnvio = {
-        total,
-        processados: 0,
-        porcentagem: 0,
-        itensProcessados: []
-    };
-}
-
-// Rota para obter o progresso do envio
+// Rota para obter o progresso do envio - USANDO VARIÁVEIS GLOBAIS
 app.get('/api/progresso-envio', autenticarUsuario, (req, res) => {
     res.json({
-        ativo: processoEnvioAtivo,
-        ...progressoEnvio
+        ativo: global.processoEnvioAtivo || false,
+        total: global.progressoEnvio?.total || 0,
+        processados: global.progressoEnvio?.processados || 0,
+        porcentagem: global.progressoEnvio?.porcentagem || 0
     });
 });
 

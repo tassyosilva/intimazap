@@ -62,10 +62,51 @@ const EnviarComunicados: React.FC = () => {
     const [resultadosDetalhados, setResultadosDetalhados] = useState<ResultadoDetalhado[]>([]);
     const [templateMensagem, setTemplateMensagem] = useState<string>('');
 
+    // Estados para o progresso em tempo real
+    const [progressoEnvio, setProgressoEnvio] = useState({
+        ativo: false,
+        total: 0,
+        processados: 0,
+        porcentagem: 0
+    });
+
     // Carregar template de mensagem ao montar o componente
     useEffect(() => {
         carregarTemplate();
     }, []);
+
+    // useEffect para monitorar o progresso
+    useEffect(() => {
+        let interval: number;
+
+        if (showProgress) {
+            // Iniciar polling do progresso
+            interval = setInterval(async () => {
+                try {
+                    const response = await axios.get(`${API_URL}/progresso-envio`);
+                    setProgressoEnvio(response.data);
+
+                    // Se o processo terminou, parar o polling
+                    if (!response.data.ativo && response.data.processados > 0) {
+                        setShowProgress(false);
+                        // Recarregar os dados para mostrar o resultado final
+                        setTimeout(() => {
+                            // Forçar atualização da página para mostrar resultados
+                            window.location.reload();
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar progresso:', error);
+                }
+            }, 1000); // Verificar a cada 1 segundo
+        }
+
+        return () => {
+            if (interval) {
+                clearInterval(interval);
+            }
+        };
+    }, [showProgress]);
 
     const carregarTemplate = async () => {
         try {
@@ -120,9 +161,9 @@ const EnviarComunicados: React.FC = () => {
             });
 
             setUploadResult(response.data);
-            setShowProgress(true);
 
-            // Processar a fila automaticamente após o upload
+            // Mostrar progresso e processar automaticamente
+            setShowProgress(true);
             await processarFila();
 
         } catch (err: any) {
@@ -145,8 +186,9 @@ const EnviarComunicados: React.FC = () => {
                 filaProcessada: response.data
             }));
 
-            setShowProgress(false);
-            setIsProcessing(false);
+            // Não desligar o showProgress aqui - deixar o useEffect controlar
+            // setShowProgress(false);
+            // setIsProcessing(false);
         } catch (err: any) {
             console.error('Erro ao processar fila:', err);
             setError(err.response?.data?.error || 'Erro ao processar fila de comunicados');
@@ -160,6 +202,8 @@ const EnviarComunicados: React.FC = () => {
         setUploadResult(null);
         setError('');
         setResultadosDetalhados([]);
+        setShowProgress(false);
+        setIsProcessing(false);
     };
 
     const getStatusChip = (status: string) => {
@@ -177,15 +221,18 @@ const EnviarComunicados: React.FC = () => {
         <form onSubmit={handleSubmit}>
             <Grid container spacing={3}>
                 <Grid item xs={12}>
-                    <Box sx={{ border: '1px dashed grey', p: 2, borderRadius: 1 }}>
+                    <InputLabel htmlFor="file-upload">
+                        Selecione a planilha de comunicados (.xlsx)
+                    </InputLabel>
+                    <Box sx={{ mt: 1 }}>
                         <input
-                            accept=".xlsx,.xls"
-                            style={{ display: 'none' }}
                             id="file-upload"
                             type="file"
+                            accept=".xlsx,.xls"
                             onChange={handleFileChange}
+                            style={{ display: 'none' }}
                         />
-                        <InputLabel htmlFor="file-upload">
+                        <label htmlFor="file-upload">
                             <Button
                                 variant="outlined"
                                 component="span"
@@ -193,43 +240,17 @@ const EnviarComunicados: React.FC = () => {
                                 fullWidth
                                 sx={{ py: 2 }}
                             >
-                                {file ? file.name : 'Selecionar Planilha (.xlsx)'}
+                                {file ? file.name : 'Escolher arquivo'}
                             </Button>
-                        </InputLabel>
-                        <Typography variant="caption" display="block" sx={{ mt: 1, textAlign: 'center' }}>
-                            A planilha deve conter as colunas: "nome" e "telefone"
-                        </Typography>
+                        </label>
                     </Box>
                 </Grid>
-
-                <Grid item xs={12}>
-                    <TextField
-                        label="Mensagem do Comunicado"
-                        multiline
-                        rows={8}
-                        fullWidth
-                        value={templateMensagem}
-                        onChange={(e) => setTemplateMensagem(e.target.value)}
-                        helperText="Use {nome} para personalizar a mensagem com o nome da pessoa"
-                        variant="outlined"
-                    />
-                    <Box sx={{ mt: 1 }}>
-                        <Button
-                            variant="outlined"
-                            onClick={salvarTemplate}
-                            size="small"
-                        >
-                            Salvar Template
-                        </Button>
-                    </Box>
-                </Grid>
-
                 <Grid item xs={12}>
                     <Button
                         type="submit"
                         variant="contained"
-                        startIcon={<Send />}
                         fullWidth
+                        startIcon={<Send />}
                         disabled={!file || isProcessing}
                         sx={{ py: 2 }}
                     >
@@ -250,6 +271,11 @@ const EnviarComunicados: React.FC = () => {
                 <Typography variant="body2" sx={{ mt: 1 }}>
                     Por favor, aguarde enquanto os comunicados são enviados.
                 </Typography>
+                {progressoEnvio.ativo && progressoEnvio.total > 0 && (
+                    <Typography variant="body2" sx={{ mt: 1, fontWeight: 'bold' }}>
+                        Progresso de envio: {progressoEnvio.processados} de {progressoEnvio.total} envios realizados.
+                    </Typography>
+                )}
             </Box>
         )
     );
@@ -263,7 +289,7 @@ const EnviarComunicados: React.FC = () => {
                 <Typography variant="body1">
                     {uploadResult.filaProcessada
                         ? `Envio concluído: ${uploadResult.filaProcessada.resultado.processados} mensagens enviadas.`
-                        : ''}
+                        : 'Aguardando processamento da fila...'}
                 </Typography>
             </Alert>
         )
@@ -305,11 +331,39 @@ const EnviarComunicados: React.FC = () => {
         )
     );
 
+    const renderTemplateSection = () => (
+        <Box sx={{ mt: 4 }}>
+            <Divider sx={{ mb: 3 }} />
+            <Typography variant="h6" gutterBottom>
+                Template da Mensagem de Comunicado
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Use {'{nome}'} para inserir o nome do destinatário automaticamente.
+            </Typography>
+            <TextField
+                fullWidth
+                multiline
+                rows={8}
+                value={templateMensagem}
+                onChange={(e) => setTemplateMensagem(e.target.value)}
+                placeholder="Digite o template da mensagem de comunicado..."
+                sx={{ mb: 2 }}
+            />
+            <Button
+                variant="outlined"
+                onClick={salvarTemplate}
+                disabled={!templateMensagem.trim()}
+            >
+                Salvar Template
+            </Button>
+        </Box>
+    );
+
     return (
         <Container maxWidth="md">
             <Paper elevation={3} sx={{ p: 4, my: 4 }}>
                 <Typography variant="h5" component="h1" gutterBottom align="center">
-                    Enviar Comunicado em Massa
+                    Envio de Comunicados via WhatsApp
                 </Typography>
 
                 <Divider sx={{ mb: 3 }} />
@@ -335,6 +389,7 @@ const EnviarComunicados: React.FC = () => {
                 {renderProgress()}
                 {renderResultados()}
                 {renderResultadosDetalhados()}
+                {renderTemplateSection()}
             </Paper>
         </Container>
     );
