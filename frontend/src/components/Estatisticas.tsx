@@ -112,7 +112,7 @@ const Estatisticas: React.FC<EstatisticasProps> = ({ refreshTrigger = 0 }) => {
         <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6">
-                    Estatísticas de Envio
+                    Estatísticas de Intimações
                 </Typography>
                 <Button
                     startIcon={<Refresh />}

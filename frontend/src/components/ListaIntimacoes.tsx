@@ -204,7 +204,7 @@ const ListaIntimacoes: React.FC<ListagemProps> = ({ refreshTrigger = 0 }) => {
     return (
         <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-                Intimações Registradas
+                Intimações Enviadas
             </Typography>
 
             <Grid container spacing={2} sx={{ mb: 3 }}>

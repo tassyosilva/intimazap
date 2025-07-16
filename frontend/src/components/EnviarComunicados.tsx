@@ -309,7 +309,7 @@ const EnviarComunicados: React.FC = () => {
         <Container maxWidth="md">
             <Paper elevation={3} sx={{ p: 4, my: 4 }}>
                 <Typography variant="h5" component="h1" gutterBottom align="center">
-                    Enviar Comunicados
+                    Enviar Comunicado em Massa
                 </Typography>
 
                 <Divider sx={{ mb: 3 }} />
