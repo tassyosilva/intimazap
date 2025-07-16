@@ -219,8 +219,222 @@ async function listarIntimacoes(pagina = 1, limite = 20, filtro = {}) {
     }
 }
 
+// Função para gerar mensagem de comunicado
+async function gerarMensagemComunicado(nome) {
+    try {
+        // Buscar o template de comunicado no banco de dados
+        const result = await pool.query('SELECT valor FROM config_sistema WHERE chave = $1', ['template_comunicado']);
+
+        let template;
+        if (result.rows.length > 0) {
+            template = result.rows[0].valor;
+        } else {
+            // Template padrão caso não exista no banco
+            template = `Olá, {nome}!
+
+Esta é uma mensagem de comunicado importante.
+
+Por favor, mantenha-se atento às nossas comunicações.
+
+Atenciosamente,
+Equipe de Comunicação`;
+        }
+
+        // Substituir a variável no template
+        return template.replace(/{nome}/g, nome);
+    } catch (error) {
+        console.error('Erro ao gerar mensagem de comunicado:', error);
+        throw error;
+    }
+}
+
+// Função para processar planilha de comunicados
+async function processarPlanilhaComunicados(filePath) {
+    try {
+        console.log(`Processando planilha de comunicados: ${filePath}`);
+
+        // Ler o arquivo
+        const workbook = XLSX.readFile(filePath);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+
+        console.log(`Encontrados ${data.length} registros na planilha de comunicados`);
+
+        const resultados = {
+            total: data.length,
+            processados: 0,
+            erros: 0,
+            detalhes: []
+        };
+
+        // Processamento dos registros
+        for (const row of data) {
+            try {
+                const nome = row['nome'] || row['Nome'] || '';
+                const telefone = row['telefone'] || row['Telefone'] || '';
+
+                console.log(`Processando comunicado: Nome=${nome}, Telefone=${telefone}`);
+
+                // Pular registros sem telefone ou nome
+                if (!telefone || !nome) {
+                    console.log(`Pulando registro sem dados essenciais: Nome=${nome}, Telefone=${telefone}`);
+                    resultados.detalhes.push({
+                        status: 'pulado',
+                        motivo: 'Nome ou telefone não informado'
+                    });
+                    continue;
+                }
+
+                // Gerar mensagem personalizada
+                const mensagem = await gerarMensagemComunicado(nome);
+                console.log(`Mensagem de comunicado gerada para ${nome}`);
+
+                // Inserir no banco de dados
+                const result = await pool.query(
+                    `INSERT INTO comunicados 
+                    (nome, telefone, mensagem, status) 
+                    VALUES ($1, $2, $3, $4) 
+                    RETURNING id`,
+                    [nome, telefone, mensagem, 'pendente']
+                );
+
+                console.log(`Comunicado inserido no banco de dados com ID=${result.rows[0].id}`);
+
+                resultados.processados++;
+                resultados.detalhes.push({
+                    id: result.rows[0].id,
+                    nome,
+                    telefone,
+                    status: 'pendente'
+                });
+
+            } catch (error) {
+                console.error('Erro ao processar linha da planilha de comunicados:', error);
+                resultados.erros++;
+                resultados.detalhes.push({
+                    status: 'erro',
+                    motivo: error.message
+                });
+            }
+        }
+
+        // Remover o arquivo temporário após processamento
+        await fs.remove(filePath);
+
+        return resultados;
+    } catch (error) {
+        console.error('Erro ao processar planilha de comunicados:', error);
+        throw error;
+    }
+}
+
+// Obter estatísticas de comunicados
+async function obterEstatisticasComunicados() {
+    try {
+        const result = await pool.query(`
+      SELECT 
+        status, 
+        COUNT(*) as quantidade 
+      FROM 
+        comunicados 
+      GROUP BY 
+        status
+    `);
+
+        const total = await pool.query(`
+      SELECT COUNT(*) as total FROM comunicados
+    `);
+
+        return {
+            total: parseInt(total.rows[0].total),
+            porStatus: result.rows
+        };
+    } catch (error) {
+        console.error('Erro ao obter estatísticas de comunicados:', error);
+        throw error;
+    }
+}
+
+// Listar comunicados com paginação
+async function listarComunicados(pagina = 1, limite = 20, filtro = {}) {
+    try {
+        const offset = (pagina - 1) * limite;
+
+        let query = 'SELECT * FROM comunicados';
+        const params = [];
+        let index = 1;
+
+        // Construir filtros se existirem
+        if (Object.keys(filtro).length > 0) {
+            query += ' WHERE';
+
+            if (filtro.status) {
+                query += ` status = $${index}`;
+                params.push(filtro.status);
+                index++;
+            }
+
+            if (filtro.texto && index > 1) {
+                query += ` AND (nome ILIKE $${index} OR telefone ILIKE $${index})`;
+                params.push(`%${filtro.texto}%`);
+                index++;
+            } else if (filtro.texto) {
+                query += ` (nome ILIKE $${index} OR telefone ILIKE $${index})`;
+                params.push(`%${filtro.texto}%`);
+                index++;
+            }
+        }
+
+        query += ` ORDER BY created_at DESC LIMIT $${index} OFFSET $${index + 1}`;
+        params.push(limite, offset);
+
+        const result = await pool.query(query, params);
+
+        // Contar total
+        let countQuery = 'SELECT COUNT(*) as total FROM comunicados';
+        const countParams = [];
+        let countIndex = 1;
+
+        if (Object.keys(filtro).length > 0) {
+            countQuery += ' WHERE';
+
+            if (filtro.status) {
+                countQuery += ` status = $${countIndex}`;
+                countParams.push(filtro.status);
+                countIndex++;
+            }
+
+            if (filtro.texto && countIndex > 1) {
+                countQuery += ` AND (nome ILIKE $${countIndex} OR telefone ILIKE $${countIndex})`;
+                countParams.push(`%${filtro.texto}%`);
+            } else if (filtro.texto) {
+                countQuery += ` (nome ILIKE $${countIndex} OR telefone ILIKE $${countIndex})`;
+                countParams.push(`%${filtro.texto}%`);
+            }
+        }
+
+        const totalResult = await pool.query(countQuery, countParams);
+        const total = parseInt(totalResult.rows[0].total);
+
+        return {
+            comunicados: result.rows,
+            total,
+            pagina,
+            totalPaginas: Math.ceil(total / limite),
+            limite
+        };
+    } catch (error) {
+        console.error('Erro ao listar comunicados:', error);
+        throw error;
+    }
+}
+
 module.exports = {
     processarPlanilha,
     obterEstatisticas,
-    listarIntimacoes
+    listarIntimacoes,
+    processarPlanilhaComunicados,
+    obterEstatisticasComunicados,
+    listarComunicados
 };

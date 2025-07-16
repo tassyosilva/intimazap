@@ -23,6 +23,7 @@ import UploadForm from './components/UploadForm';
 import GerenciarUsuarios from './components/GerenciarUsuarios';
 import WhatsAppConfig from './components/WhatsAppConfig';
 import TemplateEditor from './components/TemplateEditor';
+import EnviarComunicados from './components/EnviarComunicados';
 
 // AppBar estilizado
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
@@ -120,6 +121,8 @@ function App() {
         return <Dashboard refreshTrigger={refreshTrigger} />;
       case 'enviar':
         return <UploadForm />;
+      case 'comunicados':
+        return <EnviarComunicados />;
       case 'template':
         return <TemplateEditor />;
       case 'usuarios':

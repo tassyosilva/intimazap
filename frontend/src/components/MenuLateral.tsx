@@ -104,6 +104,7 @@ const MenuLateral: React.FC<MenuLateralProps> = ({
     const menuItems = [
         { text: 'Dashboard', icon: <Dashboard />, page: 'dashboard' },
         { text: 'Enviar Intimações', icon: <Send />, page: 'enviar' },
+        { text: 'Enviar Comunicados', icon: <Send />, page: 'comunicados' },
         { text: 'Editar Mensagem', icon: <Edit />, page: 'template' }
     ];
 

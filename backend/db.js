@@ -82,6 +82,30 @@ async function initDatabase() {
       )
     `);
 
+    // Tabela de comunicados
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS comunicados (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255),
+        telefone VARCHAR(255),
+        mensagem TEXT,
+        status VARCHAR(50) DEFAULT 'pendente',
+        data_envio TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Tabela de logs de envio para comunicados
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS logs_comunicados (
+        id SERIAL PRIMARY KEY,
+        comunicado_id INTEGER REFERENCES comunicados(id),
+        status VARCHAR(50),
+        erro TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Verificar se existe pelo menos um usuário admin
     const adminResult = await pool.query(`
       SELECT COUNT(*) FROM usuarios WHERE tipo = 'admin'

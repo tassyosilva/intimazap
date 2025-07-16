@@ -6,8 +6,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs-extra');
 const { initDatabase, pool } = require('./db');
-const { startBot, processarFilaIntimacoes, getConnectionStatus, disconnectBot, getDeviceInfo, enviarMensagem } = require('./whatsappBot');
-const { processarPlanilha, obterEstatisticas, listarIntimacoes } = require('./processor');
+const { startBot, processarFilaIntimacoes, processarFilaComunicados, getConnectionStatus, disconnectBot, getDeviceInfo, enviarMensagem } = require('./whatsappBot');
+const { processarPlanilha, obterEstatisticas, listarIntimacoes, processarPlanilhaComunicados, obterEstatisticasComunicados, listarComunicados } = require('./processor');
 
 require('dotenv').config();
 
@@ -603,6 +603,132 @@ app.post('/api/reenviar-nao-finalizadas', autenticarUsuario, async (req, res) =>
     } catch (error) {
         console.error('Erro ao reenviar intimações não finalizadas:', error);
         global.processoEnvioAtivo = false;
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rotas para comunicados
+// Rota para upload da planilha de comunicados
+app.post('/api/upload-comunicados', autenticarUsuario, upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+        }
+
+        const filePath = req.file.path;
+        const resultados = await processarPlanilhaComunicados(filePath);
+
+        res.json({
+            success: true,
+            message: 'Arquivo de comunicados processado com sucesso',
+            resultados
+        });
+    } catch (error) {
+        console.error('Erro no upload de comunicados:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para processar a fila de comunicados
+app.post('/api/processar-fila-comunicados', autenticarUsuario, async (req, res) => {
+    try {
+        const resultado = await processarFilaComunicados();
+        res.json({
+            success: true,
+            message: 'Fila de comunicados processada com sucesso',
+            resultado
+        });
+    } catch (error) {
+        console.error('Erro ao processar fila de comunicados:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para obter estatísticas de comunicados
+app.get('/api/estatisticas-comunicados', autenticarUsuario, async (req, res) => {
+    try {
+        const estatisticas = await obterEstatisticasComunicados();
+        res.json(estatisticas);
+    } catch (error) {
+        console.error('Erro ao obter estatísticas de comunicados:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para listar comunicados com paginação
+app.get('/api/comunicados', autenticarUsuario, async (req, res) => {
+    try {
+        const pagina = parseInt(req.query.pagina) || 1;
+        const limite = parseInt(req.query.limite) || 20;
+        const filtro = {};
+
+        if (req.query.status) filtro.status = req.query.status;
+        if (req.query.texto) filtro.texto = req.query.texto;
+
+        const resultado = await listarComunicados(pagina, limite, filtro);
+        res.json(resultado);
+    } catch (error) {
+        console.error('Erro ao listar comunicados:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para obter o template de comunicado
+app.get('/api/template-comunicado', autenticarUsuario, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM config_sistema WHERE chave = $1', ['template_comunicado']);
+
+        if (result.rows.length > 0) {
+            res.json({ template: result.rows[0].valor });
+        } else {
+            const templatePadrao = `Olá, {nome}!
+
+Esta é uma mensagem de comunicado importante.
+
+Por favor, mantenha-se atento às nossas comunicações.
+
+Atenciosamente,
+Equipe de Comunicação`;
+
+            await pool.query(
+                'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2)',
+                ['template_comunicado', templatePadrao]
+            );
+
+            res.json({ template: templatePadrao });
+        }
+    } catch (error) {
+        console.error('Erro ao obter template de comunicado:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para atualizar o template de comunicado
+app.post('/api/template-comunicado', autenticarUsuario, async (req, res) => {
+    try {
+        const { template } = req.body;
+
+        if (!template) {
+            return res.status(400).json({ error: 'Template de comunicado é obrigatório' });
+        }
+
+        const result = await pool.query('SELECT * FROM config_sistema WHERE chave = $1', ['template_comunicado']);
+
+        if (result.rows.length > 0) {
+            await pool.query(
+                'UPDATE config_sistema SET valor = $1 WHERE chave = $2',
+                [template, 'template_comunicado']
+            );
+        } else {
+            await pool.query(
+                'INSERT INTO config_sistema (chave, valor) VALUES ($1, $2)',
+                ['template_comunicado', template]
+            );
+        }
+
+        res.json({ success: true, message: 'Template de comunicado atualizado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar template de comunicado:', error);
         res.status(500).json({ error: error.message });
     }
 });

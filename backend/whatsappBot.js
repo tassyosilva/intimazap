@@ -505,13 +505,120 @@ async function diagnosticarDiretorioAuth() {
     }
 }
 
+// Função para processar fila de comunicados pendentes
+async function processarFilaComunicados() {
+    try {
+        // Configurar timezone explicitamente para esta transação
+        await pool.query(`SET timezone = 'America/Boa_Vista'`);
+
+        // Buscar comunicados pendentes no banco de dados
+        const result = await pool.query(
+            'SELECT * FROM comunicados WHERE status = $1 ORDER BY id',
+            ['pendente']
+        );
+
+        const totalComunicados = result.rows.length;
+        console.log(`Processando ${totalComunicados} comunicados pendentes`);
+
+        // Resetar progresso global
+        global.resetarProgressoEnvio(totalComunicados);
+        global.processoEnvioAtivo = true;
+
+        // Contador de processados
+        let processados = 0;
+        const resultadosDetalhados = [];
+
+        // Processar cada comunicado individualmente
+        for (let i = 0; i < result.rows.length; i++) {
+            const comunicado = result.rows[i];
+            const registro = {
+                id: comunicado.id,
+                nome: comunicado.nome,
+                telefone: comunicado.telefone,
+                status: '',
+                mensagem: '',
+                hora: new Date().toLocaleTimeString('pt-BR'),
+                progresso: `${i + 1}/${totalComunicados}`
+            };
+
+            try {
+                console.log(`\n[PROCESSANDO ${i + 1}/${result.rows.length}] Comunicado #${comunicado.id} para ${comunicado.nome}`);
+
+                // Pausa antes de enviar
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Enviar a mensagem
+                await enviarMensagem(comunicado.telefone, comunicado.mensagem);
+                console.log(`Comunicado enviado com sucesso para ${comunicado.nome}`);
+
+                registro.status = 'enviado';
+                registro.mensagem = 'Comunicado enviado com sucesso';
+
+                // Atualizar status para enviado
+                await pool.query(
+                    `UPDATE comunicados SET status = $1, data_envio = CURRENT_TIMESTAMP WHERE id = $2`,
+                    ['enviado', comunicado.id]
+                );
+
+                // Registrar log de sucesso
+                await pool.query(
+                    'INSERT INTO logs_comunicados (comunicado_id, status) VALUES ($1, $2)',
+                    [comunicado.id, 'enviado']
+                );
+
+                processados++;
+
+            } catch (error) {
+                console.error(`Erro ao enviar comunicado para ${comunicado.nome}:`, error);
+
+                registro.status = 'erro';
+                registro.mensagem = `Erro: ${error.message}`;
+
+                // Atualizar status para erro
+                await pool.query(
+                    `UPDATE comunicados SET status = $1 WHERE id = $2`,
+                    ['erro', comunicado.id]
+                );
+
+                // Registrar log de erro
+                await pool.query(
+                    'INSERT INTO logs_comunicados (comunicado_id, status, erro) VALUES ($1, $2, $3)',
+                    [comunicado.id, 'erro', error.message]
+                );
+            }
+
+            resultadosDetalhados.push(registro);
+
+            // Atualizar progresso global
+            global.atualizarProgressoEnvio(i + 1, registro);
+
+            // Pausa entre envios
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        global.processoEnvioAtivo = false;
+
+        return {
+            total: totalComunicados,
+            processados: processados,
+            resultadosDetalhados: resultadosDetalhados
+        };
+
+    } catch (error) {
+        console.error('Erro ao processar fila de comunicados:', error);
+        global.processoEnvioAtivo = false;
+        throw error;
+    }
+}
+
 module.exports = {
     startBot,
     enviarMensagem,
     processarFilaIntimacoes,
+    processarFilaComunicados,
     getConnectionStatus,
     disconnectBot,
     getDeviceInfo,
-    diagnosticarDiretorioAuth,  // Nova função para diagnóstico
-    AUTH_DIR  // Exportar o caminho para uso em outros módulos
+    diagnosticarDiretorioAuth,
+    AUTH_DIR
 };
