@@ -86,6 +86,9 @@ npm install
 ### Acesse
 cd /var/www/intimazap/frontend
 
+### Instalar dependências do postgres
+apt install postgresql-client
+
 ### Construir o frontend para produção
 npm run build
 
