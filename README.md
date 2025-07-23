@@ -16,7 +16,6 @@ apt install -y nodejs
 ### Verificar a instalação
 node -v  # Deve mostrar v18.x.x
 npm -v   # Deve mostrar a versão do npm
-bruno 
 
 ### Instalar Nginx
 apt install -y nginx
@@ -86,6 +85,9 @@ npm install
 
 ### Acesse
 cd /var/www/intimazap/frontend
+
+### Instalar dependências do postgres
+apt install postgresql-client
 
 ### Construir o frontend para produção
 npm run build
